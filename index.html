@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 목표 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK v9 compat (CDN) -->
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+:root {
+  --bg: #0a0c0f;
+  --surface: #111318;
+  --border: #1e2128;
+  --text: #e8eaf0;
+  --muted: #4a5060;
+  --card-bg: #13161d;
+  --fitness: #00e5a0;
+  --growth: #4d9fff;
+  --income: #ffb800;
+  --family: #ff6b8a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  padding: 32px 24px 60px;
+  background-image:
+    radial-gradient(ellipse 80% 40% at 15% 0%, rgba(0,229,160,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 30% at 85% 100%, rgba(77,159,255,0.05) 0%, transparent 60%);
+}
+
+/* ── HEADER ── */
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 36px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.header-left h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(36px, 5vw, 56px);
+  letter-spacing: 4px;
+  line-height: 1;
+}
+.live-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.live-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--fitness);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+.live-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+.header-right { text-align: right; }
+.yr-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.yr-bar-wrap {
+  width: 180px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.yr-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--fitness), var(--growth));
+  border-radius: 2px;
+  transition: width 1s ease;
+}
+.yr-pct {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px;
+  letter-spacing: 2px;
+}
+
+/* ── OVERVIEW STRIP ── */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media(max-width:700px){ .overview{ grid-template-columns:1fr 1fr; } }
+.ov-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: border-color .2s;
+}
+.ov-card:hover { border-color: var(--muted); }
+.ov-card::before {
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+}
+.ov-card.c-fitness::before { background:var(--fitness); }
+.ov-card.c-growth::before  { background:var(--growth); }
+.ov-card.c-income::before  { background:var(--income); }
+.ov-card.c-family::before  { background:var(--family); }
+
+.ov-icon { font-size:20px; margin-bottom:8px; }
+.ov-title {
+  font-size:10px; letter-spacing:2px;
+  color:var(--muted); text-transform:uppercase; margin-bottom:4px;
+}
+.ov-score {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:38px; letter-spacing:1px; line-height:1;
+}
+.c-fitness .ov-score { color:var(--fitness); }
+.c-growth  .ov-score { color:var(--growth); }
+.c-income  .ov-score { color:var(--income); }
+.c-family  .ov-score { color:var(--family); }
+.ov-sub { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); margin-top:4px; }
+
+/* ── MAIN GRID ── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media(max-width:800px){ .main-grid{ grid-template-columns:1fr; } }
+
+/* ── CAT CARD ── */
+.cat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.cat-card:hover { border-color: var(--muted); }
+.cat-card::after {
+  content:'';
+  position:absolute;
+  top:-50px;right:-50px;
+  width:130px;height:130px;
+  border-radius:50%;
+  opacity:.04;
+  pointer-events:none;
+}
+.cat-card.c-fitness::after { background:var(--fitness); }
+.cat-card.c-growth::after  { background:var(--growth); }
+.cat-card.c-income::after  { background:var(--income); }
+.cat-card.c-family::after  { background:var(--family); }
+
+.cat-header {
+  display:flex; align-items:center; gap:10px; margin-bottom:20px;
+}
+.cat-dot {
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.c-fitness .cat-dot { background:var(--fitness); box-shadow:0 0 8px var(--fitness); }
+.c-growth  .cat-dot { background:var(--growth);  box-shadow:0 0 8px var(--growth); }
+.c-income  .cat-dot { background:var(--income);  box-shadow:0 0 8px var(--income); }
+.c-family  .cat-dot { background:var(--family);  box-shadow:0 0 8px var(--family); }
+
+.cat-title {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:22px; letter-spacing:3px; flex:1;
+}
+.cat-badge {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px; padding:3px 8px; border-radius:20px; letter-spacing:1px;
+}
+.c-fitness .cat-badge { background:rgba(0,229,160,.12); color:var(--fitness); }
+.c-growth  .cat-badge { background:rgba(77,159,255,.12); color:var(--growth); }
+.c-income  .cat-badge { background:rgba(255,184,0,.12);  color:var(--income); }
+.c-family  .cat-badge { background:rgba(255,107,138,.12);color:var(--family); }
+
+/* ── GOAL ROW ── */
+.goal-row { margin-bottom:14px; }
+.goal-meta {
+  display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;
+}
+.goal-name { font-size:12px; font-weight:500; letter-spacing:.5px; }
+.goal-nums { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); }
+.goal-nums strong { color:var(--text); font-weight:700; }
+.progress-track {
+  height:5px; background:var(--border); border-radius:3px; overflow:hidden;
+}
+.progress-fill {
+  height:100%; border-radius:3px; transition:width 1s ease;
+}
+.c-fitness .progress-fill { background:var(--fitness); }
+.c-growth  .progress-fill { background:var(--growth); }
+.c-income  .progress-fill { background:var(--income); }
+.c-family  .progress-fill { background:var(--family); }
+
+/* ── STREAK HEATMAP ── */
+.streak-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px; color:var(--muted); letter-spacing:1px; margin-bottom:6px;
+}
+.streak-row { display:flex; gap:3px; flex-wrap:wrap; }
+.streak-week { display:flex; gap:2px; }
+.streak-day {
+  width:10px;height:10px;border-radius:2px;background:var(--border);
+}
+.streak-day.done  { background:var(--fitness); opacity:.8; }
+.streak-day.today { background:var(--fitness); box-shadow:0 0 5px var(--fitness); }
+
+/* ── QUARTER GRID ── */
+.section-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px; color:var(--muted); letter-spacing:1.5px;
+  text-transform:uppercase; margin-top:14px; margin-bottom:8px;
+}
+.quarter-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+}
+.q-box {
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:6px; padding:10px 6px; text-align:center;
+}
+.q-label {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:20px; letter-spacing:2px; color:var(--muted);
+}
+.q-status { font-size:10px; color:var(--muted); margin-top:2px; }
+.q-box.done { border-color:rgba(77,159,255,.4); background:rgba(77,159,255,.07); }
+.q-box.done .q-label { color:var(--growth); }
+.q-box.done .q-status { color:var(--growth); }
+/* family quarter */
+.q-box.done-f { border-color:rgba(255,107,138,.4); background:rgba(255,107,138,.07); }
+.q-box.done-f .q-label { color:var(--family); }
+.q-box.done-f .q-status { color:var(--family); }
+
+/* ── TOEIC ── */
+.toeic-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.toeic-box {
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:8px; padding:12px;
+}
+.toeic-half { font-size:10px; color:var(--muted); letter-spacing:1px; margin-bottom:6px; text-transform:uppercase; }
+.toeic-score {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:32px; letter-spacing:1px; color:var(--muted);
+}
+.toeic-score.achieved { color:var(--growth); }
+.toeic-target { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); margin-top:2px; }
+
+/* ── INCOME GAUGES ── */
+.gauge-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.gauge-box {
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:8px; padding:14px; text-align:center;
+}
+.gauge-label { font-size:10px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.gauge-value {
+  font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:1px; color:var(--income);
+}
+.gauge-target { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); margin-top:2px; }
+.gauge-bar-wrap { height:4px; background:var(--border); border-radius:2px; overflow:hidden; margin-top:10px; }
+.gauge-bar-fill { height:100%; background:var(--income); border-radius:2px; transition:width 1s ease; }
+
+/* ── SPARKLINE ── */
+.spark-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px; color:var(--muted); letter-spacing:1px; margin-top:16px; margin-bottom:6px;
+}
+.spark-bars { display:flex; gap:4px; align-items:flex-end; height:44px; }
+.spark-bar {
+  flex:1; border-radius:2px 2px 0 0;
+  background:rgba(255,184,0,.2); min-height:3px;
+  transition:height .5s ease;
+}
+.spark-bar.active { background:var(--income); }
+.spark-months {
+  display:flex; justify-content:space-between;
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px; color:var(--muted); margin-top:3px;
+}
+
+/* ── MONTH CALENDAR (FAMILY) ── */
+.month-grid {
+  display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-top:8px;
+}
+.month-pill {
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:6px; padding:6px 4px; text-align:center;
+  font-size:9px; color:var(--muted);
+  font-family:'JetBrains Mono',monospace; letter-spacing:.5px;
+  cursor:pointer; transition:all .2s;
+}
+.month-pill:hover { border-color:var(--muted); }
+.month-pill.done {
+  border-color:rgba(255,107,138,.4);
+  background:rgba(255,107,138,.08);
+  color:var(--family);
+}
+.month-pill.current {
+  border-color:var(--family);
+  color:var(--family);
+  box-shadow:0 0 6px rgba(255,107,138,.3);
+}
+
+/* ── LOG BTN ── */
+.log-btn-row {
+  display:flex; justify-content:flex-end;
+  margin-top:16px; padding-top:14px;
+  border-top:1px solid var(--border);
+}
+.log-btn {
+  background:var(--border); border:none; border-radius:6px;
+  padding:8px 18px; color:var(--muted);
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px; letter-spacing:1.5px;
+  cursor:pointer; transition:all .2s;
+}
+.log-btn:hover { color:var(--bg); }
+.c-fitness .log-btn:hover { background:var(--fitness); }
+.c-growth  .log-btn:hover { background:var(--growth); }
+.c-income  .log-btn:hover { background:var(--income); }
+.c-family  .log-btn:hover { background:var(--family); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.75); z-index:1000;
+  align-items:center; justify-content:center;
+  backdrop-filter:blur(4px);
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--card-bg);
+  border:1px solid var(--border);
+  border-radius:14px;
+  width:min(480px,90vw);
+  padding:32px;
+  position:relative;
+  animation:modalIn .2s ease;
+}
+@keyframes modalIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.modal-close {
+  position:absolute; top:16px; right:16px;
+  background:none; border:none; color:var(--muted);
+  font-size:20px; cursor:pointer; line-height:1;
+  transition:color .2s;
+}
+.modal-close:hover { color:var(--text); }
+.modal-title {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:24px; letter-spacing:3px; margin-bottom:6px;
+}
+.modal-sub {
+  font-size:12px; color:var(--muted); margin-bottom:24px;
+}
+.modal-accent-bar {
+  height:2px; border-radius:1px; width:40px; margin-bottom:20px;
+}
+.field-group { margin-bottom:16px; }
+.field-label {
+  font-size:11px; color:var(--muted);
+  letter-spacing:1.5px; text-transform:uppercase;
+  margin-bottom:6px; display:block;
+}
+.field-input, .field-select {
+  width:100%; background:var(--bg);
+  border:1px solid var(--border); border-radius:6px;
+  padding:10px 14px; color:var(--text);
+  font-family:'Noto Sans KR',sans-serif; font-size:13px;
+  outline:none; transition:border-color .2s;
+  -webkit-appearance:none;
+}
+.field-input:focus, .field-select:focus { border-color:var(--muted); }
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.modal-actions {
+  display:flex; gap:10px; justify-content:flex-end; margin-top:24px;
+}
+.btn-cancel {
+  background:none; border:1px solid var(--border);
+  border-radius:6px; padding:9px 20px;
+  color:var(--muted); font-family:'Noto Sans KR',sans-serif;
+  font-size:13px; cursor:pointer; transition:all .2s;
+}
+.btn-cancel:hover { border-color:var(--muted); color:var(--text); }
+.btn-save {
+  border:none; border-radius:6px;
+  padding:9px 24px; color:#000;
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:13px; font-weight:700;
+  cursor:pointer; transition:opacity .2s;
+}
+.btn-save:hover { opacity:.85; }
+.btn-save:disabled { opacity:.4; cursor:not-allowed; }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:32px; right:24px;
+  background:var(--card-bg); border:1px solid var(--border);
+  border-radius:8px; padding:12px 20px;
+  font-family:'JetBrains Mono',monospace; font-size:12px;
+  color:var(--text); letter-spacing:1px;
+  transform:translateY(20px); opacity:0;
+  transition:all .3s ease; pointer-events:none;
+  z-index:2000;
+}
+.toast.show { transform:translateY(0); opacity:1; }
+
+/* ── BOTTOM ── */
+.bottom-strip {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:20px; flex-wrap:wrap; gap:12px;
+}
+.last-updated {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px; color:var(--muted); letter-spacing:1px;
+}
+.overall-wrap { display:flex; align-items:center; gap:10px; }
+.overall-label {
+  font-size:10px; color:var(--muted);
+  letter-spacing:2px; text-transform:uppercase;
+}
+.overall-score {
+  font-family:'Bebas Neue',sans-serif; font-size:36px;
+  background:linear-gradient(90deg,var(--fitness),var(--growth));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  letter-spacing:2px;
+}
+
+/* ── LOADING ── */
+#loading-overlay {
+  position:fixed; inset:0;
+  background:var(--bg);
+  display:flex; align-items:center; justify-content:center;
+  z-index:9999; transition:opacity .4s ease;
+}
+.loading-text {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:24px; letter-spacing:4px; color:var(--muted);
+  animation:pulse 1.5s infinite;
+}
+</style>
+
+</head>
+<body>
+
+<!-- LOADING -->
+
+<div id="loading-overlay">
+  <div class="loading-text">LOADING...</div>
+</div>
+
+<!-- HEADER -->
+
+<div class="header">
+  <div class="header-left">
+    <h1>2026 GOALS</h1>
+    <div class="live-row">
+      <div class="live-dot"></div>
+      <span class="live-label">LIVE TRACKING — MJ</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="yr-label">YEAR PROGRESS</div>
+    <div class="yr-bar-wrap"><div class="yr-bar-fill" id="yrBar"></div></div>
+    <div class="yr-pct" id="yrPct">—</div>
+  </div>
+</div>
+
+<!-- OVERVIEW -->
+
+<div class="overview">
+  <div class="ov-card c-fitness">
+    <div class="ov-icon">🏃</div>
+    <div class="ov-title">체력</div>
+    <div class="ov-score" id="ov-fitness">—<span style="font-size:16px;opacity:.5">%</span></div>
+    <div class="ov-sub" id="ov-fitness-sub">로딩중...</div>
+  </div>
+  <div class="ov-card c-growth">
+    <div class="ov-icon">📚</div>
+    <div class="ov-title">성장</div>
+    <div class="ov-score" id="ov-growth">—<span style="font-size:16px;opacity:.5">%</span></div>
+    <div class="ov-sub" id="ov-growth-sub">로딩중...</div>
+  </div>
+  <div class="ov-card c-income">
+    <div class="ov-icon">📈</div>
+    <div class="ov-title">소득</div>
+    <div class="ov-score" id="ov-income">—<span style="font-size:16px;opacity:.5">%</span></div>
+    <div class="ov-sub" id="ov-income-sub">로딩중...</div>
+  </div>
+  <div class="ov-card c-family">
+    <div class="ov-icon">🏡</div>
+    <div class="ov-title">가족</div>
+    <div class="ov-score" id="ov-family">—<span style="font-size:16px;opacity:.5">%</span></div>
+    <div class="ov-sub" id="ov-family-sub">로딩중...</div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+
+<div class="main-grid">
+
+  <!-- FITNESS CARD -->
+
+  <div class="cat-card c-fitness">
+    <div class="cat-header">
+      <div class="cat-dot"></div>
+      <div class="cat-title">체력</div>
+      <div class="cat-badge">PHYSICAL</div>
+    </div>
+
+```
+<div class="goal-row">
+  <div class="goal-meta">
+    <span class="goal-name">🏃 조깅</span>
+    <span class="goal-nums"><strong id="jogging-val">0</strong> / 900 km</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="jogging-bar" style="width:0%"></div>
+  </div>
+</div>
+<div class="goal-row">
+  <div class="goal-meta">
+    <span class="goal-name">💪 턱걸이</span>
+    <span class="goal-nums">오늘 <strong id="pullup-val">0</strong> / 40 개</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="pullup-bar" style="width:0%"></div>
+  </div>
+</div>
+<div class="goal-row">
+  <div class="goal-meta">
+    <span class="goal-name">🔥 스쿼트</span>
+    <span class="goal-nums">오늘 <strong id="squat-val">0</strong> / 40 개</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="squat-bar" style="width:0%"></div>
+  </div>
+</div>
+<div class="goal-row">
+  <div class="goal-meta">
+    <span class="goal-name">✊ 팔굽혀펴기</span>
+    <span class="goal-nums">오늘 <strong id="pushup-val">0</strong> / 40 개</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="pushup-bar" style="width:0%"></div>
+  </div>
+</div>
+
+<div class="streak-label" style="margin-top:14px;">조깅 STREAK — 최근 10주</div>
+<div class="streak-row" id="streakMap"></div>
+
+<div class="log-btn-row">
+  <button class="log-btn" onclick="openModal('fitness')">+ LOG 실적</button>
+</div>
+```
+
+  </div>
+
+  <!-- GROWTH CARD -->
+
+  <div class="cat-card c-growth">
+    <div class="cat-header">
+      <div class="cat-dot"></div>
+      <div class="cat-title">성장</div>
+      <div class="cat-badge">GROWTH</div>
+    </div>
+
+```
+<div class="section-label" style="margin-top:0">영어 시험 · 반기 1회 (기준 800점)</div>
+<div class="toeic-row">
+  <div class="toeic-box">
+    <div class="toeic-half">상반기</div>
+    <div class="toeic-score" id="toeic-h1">—</div>
+    <div class="toeic-target">목표 ≥ 800</div>
+  </div>
+  <div class="toeic-box">
+    <div class="toeic-half">하반기</div>
+    <div class="toeic-score" id="toeic-h2">—</div>
+    <div class="toeic-target">목표 ≥ 800</div>
+  </div>
+</div>
+
+<div class="section-label">자격증 · 분기 1회</div>
+<div class="quarter-grid" id="cert-quarters">
+  <div class="q-box" id="cert-q1"><div class="q-label">Q1</div><div class="q-status">예정</div></div>
+  <div class="q-box" id="cert-q2"><div class="q-label">Q2</div><div class="q-status">예정</div></div>
+  <div class="q-box" id="cert-q3"><div class="q-label">Q3</div><div class="q-status">예정</div></div>
+  <div class="q-box" id="cert-q4"><div class="q-label">Q4</div><div class="q-status">예정</div></div>
+</div>
+
+<div class="goal-row" style="margin-top:16px;">
+  <div class="goal-meta">
+    <span class="goal-name">연간 성장 달성률</span>
+    <span class="goal-nums"><strong id="growth-pct-val">0</strong>%</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="growth-pct-bar" style="width:0%"></div>
+  </div>
+</div>
+
+<div class="log-btn-row">
+  <button class="log-btn" onclick="openModal('growth')">+ LOG 실적</button>
+</div>
+```
+
+  </div>
+
+  <!-- INCOME CARD -->
+
+  <div class="cat-card c-income">
+    <div class="cat-header">
+      <div class="cat-dot"></div>
+      <div class="cat-title">소득</div>
+      <div class="cat-badge">INCOME</div>
+    </div>
+
+```
+<div class="gauge-row">
+  <div class="gauge-box">
+    <div class="gauge-label">주식투자</div>
+    <div class="gauge-value"><span id="stock-val">0.0</span><span style="font-size:14px">%</span></div>
+    <div class="gauge-target">목표 연 +20%</div>
+    <div class="gauge-bar-wrap">
+      <div class="gauge-bar-fill" id="stock-bar" style="width:0%"></div>
+    </div>
+  </div>
+  <div class="gauge-box">
+    <div class="gauge-label">연금투자</div>
+    <div class="gauge-value"><span id="pension-val">0.0</span><span style="font-size:14px">%</span></div>
+    <div class="gauge-target">목표 연 +15%</div>
+    <div class="gauge-bar-wrap">
+      <div class="gauge-bar-fill" id="pension-bar" style="width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<div class="spark-label">월별 주식 수익률 추이</div>
+<div class="spark-bars" id="sparkBars">
+  <!-- JS로 생성 -->
+</div>
+<div class="spark-months">
+  <span>JAN</span><span>FEB</span><span>MAR</span>
+  <span style="opacity:.3">APR</span><span style="opacity:.3">MAY</span><span style="opacity:.3">JUN</span>
+  <span style="opacity:.3">JUL</span><span style="opacity:.3">AUG</span><span style="opacity:.3">SEP</span>
+  <span style="opacity:.3">OCT</span><span style="opacity:.3">NOV</span><span style="opacity:.3">DEC</span>
+</div>
+
+<div class="log-btn-row">
+  <button class="log-btn" onclick="openModal('income')">+ LOG 실적</button>
+</div>
+```
+
+  </div>
+
+  <!-- FAMILY CARD -->
+
+  <div class="cat-card c-family">
+    <div class="cat-header">
+      <div class="cat-dot"></div>
+      <div class="cat-title">가족</div>
+      <div class="cat-badge">FAMILY</div>
+    </div>
+
+```
+<div class="section-label" style="margin-top:0">테마여행 · 매월 1회 (목표 12회)</div>
+<div class="month-grid" id="travel-months"></div>
+
+<div class="section-label">교육 행사 · 분기 1회</div>
+<div class="quarter-grid" id="edu-quarters">
+  <div class="q-box" id="edu-q1"><div class="q-label">Q1</div><div class="q-status">예정</div></div>
+  <div class="q-box" id="edu-q2"><div class="q-label">Q2</div><div class="q-status">예정</div></div>
+  <div class="q-box" id="edu-q3"><div class="q-label">Q3</div><div class="q-status">예정</div></div>
+  <div class="q-box" id="edu-q4"><div class="q-label">Q4</div><div class="q-status">예정</div></div>
+</div>
+
+<div class="goal-row" style="margin-top:16px;">
+  <div class="goal-meta">
+    <span class="goal-name">여행 달성률</span>
+    <span class="goal-nums"><strong id="travel-val">0</strong> / 12 회</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="travel-bar" style="width:0%"></div>
+  </div>
+</div>
+
+<div class="log-btn-row">
+  <button class="log-btn" onclick="openModal('family')">+ LOG 실적</button>
+</div>
+```
+
+  </div>
+
+</div>
+
+<!-- BOTTOM -->
+
+<div class="bottom-strip">
+  <div class="last-updated" id="lastUpdated">LAST UPDATED — —</div>
+  <div class="overall-wrap">
+    <div class="overall-label">OVERALL</div>
+    <div class="overall-score" id="overallScore">—%</div>
+  </div>
+</div>
+
+<!-- ──────────── MODALS ──────────── -->
+
+<!-- FITNESS MODAL -->
+
+<div class="modal-overlay" id="modal-fitness">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('fitness')">✕</button>
+    <div class="modal-title" style="color:var(--fitness)">체력 실적 입력</div>
+    <div class="modal-sub">오늘의 운동 실적을 입력하세요</div>
+    <div class="modal-accent-bar" style="background:var(--fitness)"></div>
+
+```
+<div class="field-row">
+  <div class="field-group">
+    <label class="field-label">조깅 (km, 누적 추가)</label>
+    <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 5.2">
+  </div>
+  <div class="field-group">
+    <label class="field-label">턱걸이 (개, 오늘)</label>
+    <input class="field-input" id="f-pullup" type="number" min="0" max="200" placeholder="예: 40">
+  </div>
+</div>
+<div class="field-row">
+  <div class="field-group">
+    <label class="field-label">스쿼트 (개, 오늘)</label>
+    <input class="field-input" id="f-squat" type="number" min="0" max="200" placeholder="예: 40">
+  </div>
+  <div class="field-group">
+    <label class="field-label">팔굽혀펴기 (개, 오늘)</label>
+    <input class="field-input" id="f-pushup" type="number" min="0" max="200" placeholder="예: 40">
+  </div>
+</div>
+<div class="field-group">
+  <label class="field-label">메모 (선택)</label>
+  <input class="field-input" id="f-memo" type="text" placeholder="예: 한강 코스, 날씨 맑음">
+</div>
+<div class="modal-actions">
+  <button class="btn-cancel" onclick="closeModal('fitness')">취소</button>
+  <button class="btn-save" id="save-fitness" style="background:var(--fitness)" onclick="saveFitness()">저장</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- GROWTH MODAL -->
+
+<div class="modal-overlay" id="modal-growth">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('growth')">✕</button>
+    <div class="modal-title" style="color:var(--growth)">성장 실적 입력</div>
+    <div class="modal-sub">영어 시험 점수 또는 자격증을 입력하세요</div>
+    <div class="modal-accent-bar" style="background:var(--growth)"></div>
+
+```
+<div class="field-group">
+  <label class="field-label">항목 선택</label>
+  <select class="field-select" id="g-type" onchange="toggleGrowthFields()">
+    <option value="">— 선택 —</option>
+    <option value="toeic">영어 시험 (토익)</option>
+    <option value="cert">자격증 취득</option>
+  </select>
+</div>
+
+<div id="g-toeic-fields" style="display:none">
+  <div class="field-row">
+    <div class="field-group">
+      <label class="field-label">반기</label>
+      <select class="field-select" id="g-toeic-half">
+        <option value="h1">상반기</option>
+        <option value="h2">하반기</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label class="field-label">점수</label>
+      <input class="field-input" id="g-toeic-score" type="number" min="0" max="990" placeholder="예: 850">
+    </div>
+  </div>
+</div>
+
+<div id="g-cert-fields" style="display:none">
+  <div class="field-row">
+    <div class="field-group">
+      <label class="field-label">분기</label>
+      <select class="field-select" id="g-cert-quarter">
+        <option value="q1">Q1</option>
+        <option value="q2">Q2</option>
+        <option value="q3">Q3</option>
+        <option value="q4">Q4</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label class="field-label">자격증명</label>
+      <input class="field-input" id="g-cert-name" type="text" placeholder="예: 정보처리기사">
+    </div>
+  </div>
+</div>
+
+<div class="modal-actions">
+  <button class="btn-cancel" onclick="closeModal('growth')">취소</button>
+  <button class="btn-save" id="save-growth" style="background:var(--growth)" onclick="saveGrowth()">저장</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- INCOME MODAL -->
+
+<div class="modal-overlay" id="modal-income">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('income')">✕</button>
+    <div class="modal-title" style="color:var(--income)">소득 실적 입력</div>
+    <div class="modal-sub">누적 수익률을 입력하세요 (연초 대비 %)</div>
+    <div class="modal-accent-bar" style="background:var(--income)"></div>
+
+```
+<div class="field-row">
+  <div class="field-group">
+    <label class="field-label">주식 수익률 (%)</label>
+    <input class="field-input" id="i-stock" type="number" step="0.1" placeholder="예: 7.5">
+  </div>
+  <div class="field-group">
+    <label class="field-label">연금 수익률 (%)</label>
+    <input class="field-input" id="i-pension" type="number" step="0.1" placeholder="예: 4.2">
+  </div>
+</div>
+<div class="field-group">
+  <label class="field-label">월 (스파크라인용)</label>
+  <select class="field-select" id="i-month">
+    <option value="0">1월</option><option value="1">2월</option>
+    <option value="2">3월</option><option value="3">4월</option>
+    <option value="4">5월</option><option value="5">6월</option>
+    <option value="6">7월</option><option value="7">8월</option>
+    <option value="8">9월</option><option value="9">10월</option>
+    <option value="10">11월</option><option value="11">12월</option>
+  </select>
+</div>
+<div class="modal-actions">
+  <button class="btn-cancel" onclick="closeModal('income')">취소</button>
+  <button class="btn-save" id="save-income" style="background:var(--income);color:#000" onclick="saveIncome()">저장</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- FAMILY MODAL -->
+
+<div class="modal-overlay" id="modal-family">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('family')">✕</button>
+    <div class="modal-title" style="color:var(--family)">가족 실적 입력</div>
+    <div class="modal-sub">여행 또는 교육 행사를 기록하세요</div>
+    <div class="modal-accent-bar" style="background:var(--family)"></div>
+
+```
+<div class="field-group">
+  <label class="field-label">항목 선택</label>
+  <select class="field-select" id="fam-type" onchange="toggleFamilyFields()">
+    <option value="">— 선택 —</option>
+    <option value="travel">테마여행</option>
+    <option value="edu">교육 행사</option>
+  </select>
+</div>
+
+<div id="fam-travel-fields" style="display:none">
+  <div class="field-row">
+    <div class="field-group">
+      <label class="field-label">월</label>
+      <select class="field-select" id="fam-travel-month">
+        <option value="0">1월</option><option value="1">2월</option>
+        <option value="2">3월</option><option value="3">4월</option>
+        <option value="4">5월</option><option value="5">6월</option>
+        <option value="6">7월</option><option value="7">8월</option>
+        <option value="8">9월</option><option value="9">10월</option>
+        <option value="10">11월</option><option value="11">12월</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label class="field-label">테마</label>
+      <input class="field-input" id="fam-travel-theme" type="text" placeholder="예: 속초 바다 여행">
+    </div>
+  </div>
+</div>
+
+<div id="fam-edu-fields" style="display:none">
+  <div class="field-row">
+    <div class="field-group">
+      <label class="field-label">분기</label>
+      <select class="field-select" id="fam-edu-quarter">
+        <option value="q1">Q1</option><option value="q2">Q2</option>
+        <option value="q3">Q3</option><option value="q4">Q4</option>
+      </select>
+    </div>
+    <div class="field-group">
+      <label class="field-label">행사명</label>
+      <input class="field-input" id="fam-edu-name" type="text" placeholder="예: 과학관 체험">
+    </div>
+  </div>
+</div>
+
+<div class="modal-actions">
+  <button class="btn-cancel" onclick="closeModal('family')">취소</button>
+  <button class="btn-save" id="save-family" style="background:var(--family)" onclick="saveFamily()">저장</button>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- TOAST -->
+
+<div class="toast" id="toast"></div>
+
+<!-- ──────────────────────────────────────────────
+     FIREBASE CONFIG — 아래 값을 본인 프로젝트로 교체하세요
+──────────────────────────────────────────────── -->
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAyzuff9FlmuWjqtkWrn2xD3Tx-ysNL_7Y",
+  authDomain: "stp-dashboard-f507f.firebaseapp.com",
+  projectId: "stp-dashboard-f507f",
+  storageBucket: "stp-dashboard-f507f.firebasestorage.app",
+  messagingSenderId: "824071719465",
+  appId: "1:824071719465:web:dae7a9480360c8398eaa38",
+  measurementId: "G-DBPPVL5J2H"
+};
+
+// ── INIT ──
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const DOC = db.collection('goals').doc('2026');
+
+// ── DEFAULT STATE ──
+const DEFAULT = {
+  jogging: 0,
+  pullup_today: 0,
+  squat_today: 0,
+  pushup_today: 0,
+  jogging_log: [],        // [{date:'2026-01-01', km:5.2}]
+  toeic_h1: null,
+  toeic_h2: null,
+  cert: { q1:null, q2:null, q3:null, q4:null },
+  stock: 0,
+  pension: 0,
+  stock_monthly: new Array(12).fill(null),  // 월별 수익률
+  travel_months: new Array(12).fill(false),  // 월별 여행 완료
+  travel_themes: new Array(12).fill(''),
+  edu: { q1:null, q2:null, q3:null, q4:null },
+  last_updated: null,
+  last_today_reset: null  // "YYYY-MM-DD" 형식
+};
+
+let state = JSON.parse(JSON.stringify(DEFAULT));
+
+// ── UTIL ──
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function clamp(val, min, max) {
+  return Math.min(Math.max(val, min), max);
+}
+
+function pct(val, target) {
+  return Math.min(Math.round((val / target) * 100), 100);
+}
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+// ── YEAR PROGRESS ──
+function updateYearProgress() {
+  const now = new Date();
+  const start = new Date('2026-01-01');
+  const end   = new Date('2026-12-31');
+  const p = Math.round(((now - start) / (end - start)) * 100);
+  const safe = clamp(p, 0, 100);
+  document.getElementById('yrBar').style.width = safe + '%';
+  document.getElementById('yrPct').textContent = safe + '%';
+}
+
+// ── STREAK HEATMAP ──
+function buildStreak() {
+  const container = document.getElementById('streakMap');
+  container.innerHTML = '';
+  const log = state.jogging_log || [];
+  const logSet = new Set(log.map(e => e.date));
+  const todayStr = today();
+
+  // 최근 70일 (10주)
+  const days = [];
+  for (let i = 69; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+
+  for (let w = 0; w < 10; w++) {
+    const week = document.createElement('div');
+    week.className = 'streak-week';
+    for (let d = 0; d < 7; d++) {
+      const dateStr = days[w * 7 + d];
+      const el = document.createElement('div');
+      const cls = dateStr === todayStr
+        ? 'streak-day today'
+        : logSet.has(dateStr)
+          ? 'streak-day done'
+          : 'streak-day';
+      el.className = cls;
+      el.title = dateStr;
+      week.appendChild(el);
+    }
+    container.appendChild(week);
+  }
+}
+
+// ── SPARK BARS ──
+function buildSpark() {
+  const container = document.getElementById('sparkBars');
+  container.innerHTML = '';
+  const monthly = state.stock_monthly || new Array(12).fill(null);
+  const maxVal = Math.max(...monthly.filter(v => v !== null), 1);
+  const curMonth = new Date().getMonth();
+
+  for (let i = 0; i < 12; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'spark-bar' + (i <= curMonth ? ' active' : '');
+    const val = monthly[i];
+    const h = val !== null ? Math.max((val / maxVal) * 44, 3) : 3;
+    bar.style.height = h + 'px';
+    bar.title = val !== null ? val + '%' : '미입력';
+    container.appendChild(bar);
+  }
+}
+
+// ── MONTH GRID (FAMILY) ──
+function buildMonthGrid() {
+  const container = document.getElementById('travel-months');
+  container.innerHTML = '';
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const curMonth = new Date().getMonth();
+  const travelDone = state.travel_months || new Array(12).fill(false);
+
+  months.forEach((m, i) => {
+    const pill = document.createElement('div');
+    let cls = 'month-pill';
+    if (travelDone[i]) cls += ' done';
+    else if (i === curMonth) cls += ' current';
+    pill.className = cls;
+    pill.innerHTML = travelDone[i] ? `${m}<br>✓` : m;
+    pill.title = state.travel_themes[i] || '';
+    container.appendChild(pill);
+  });
+}
+
+// ── QUARTER BOXES ──
+function updateQuarters() {
+  // Cert
+  ['q1','q2','q3','q4'].forEach(q => {
+    const el = document.getElementById('cert-' + q);
+    const val = state.cert[q];
+    if (val) {
+      el.className = 'q-box done';
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">${val}</div>`;
+    } else {
+      el.className = 'q-box';
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">예정</div>`;
+    }
+  });
+  // Edu
+  ['q1','q2','q3','q4'].forEach(q => {
+    const el = document.getElementById('edu-' + q);
+    const val = state.edu[q];
+    if (val) {
+      el.className = 'q-box done-f';
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">${val}</div>`;
+    } else {
+      el.className = 'q-box';
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">예정</div>`;
+    }
+  });
+}
+
+// ── OVERVIEW SCORES ──
+function calcFitnessPct() {
+  const joggingP = pct(state.jogging, 900);
+  const pullupP  = pct(state.pullup_today, 40);
+  const squatP   = pct(state.squat_today, 40);
+  const pushupP  = pct(state.pushup_today, 40);
+  return Math.round((joggingP + pullupP + squatP + pushupP) / 4);
+}
+
+function calcGrowthPct() {
+  const toeicDone = (state.toeic_h1 !== null ? 1 : 0) + (state.toeic_h2 !== null ? 1 : 0);
+  const certDone  = ['q1','q2','q3','q4'].filter(q => state.cert[q]).length;
+  return Math.round(((toeicDone / 2) + (certDone / 4)) / 2 * 100);
+}
+
+function calcIncomePct() {
+  const sp = pct(Math.max(state.stock, 0), 20);
+  const pp = pct(Math.max(state.pension, 0), 15);
+  return Math.round((sp + pp) / 2);
+}
+
+function calcFamilyPct() {
+  const travelDone = (state.travel_months || []).filter(Boolean).length;
+  const eduDone    = ['q1','q2','q3','q4'].filter(q => state.edu[q]).length;
+  return Math.round(((travelDone / 12) + (eduDone / 4)) / 2 * 100);
+}
+
+// ── RENDER ALL ──
+function renderAll() {
+  // Today reset check
+  checkTodayReset();
+
+  // Fitness bars
+  document.getElementById('jogging-val').textContent = state.jogging.toFixed(1);
+  document.getElementById('jogging-bar').style.width = pct(state.jogging, 900) + '%';
+  document.getElementById('pullup-val').textContent = state.pullup_today;
+  document.getElementById('pullup-bar').style.width = pct(state.pullup_today, 40) + '%';
+  document.getElementById('squat-val').textContent = state.squat_today;
+  document.getElementById('squat-bar').style.width = pct(state.squat_today, 40) + '%';
+  document.getElementById('pushup-val').textContent = state.pushup_today;
+  document.getElementById('pushup-bar').style.width = pct(state.pushup_today, 40) + '%';
+
+  buildStreak();
+
+  // Toeic
+  const h1El = document.getElementById('toeic-h1');
+  const h2El = document.getElementById('toeic-h2');
+  h1El.textContent = state.toeic_h1 !== null ? state.toeic_h1 : '—';
+  h1El.className   = 'toeic-score' + (state.toeic_h1 !== null && state.toeic_h1 >= 800 ? ' achieved' : '');
+  h2El.textContent = state.toeic_h2 !== null ? state.toeic_h2 : '—';
+  h2El.className   = 'toeic-score' + (state.toeic_h2 !== null && state.toeic_h2 >= 800 ? ' achieved' : '');
+
+  // Growth pct
+  const gp = calcGrowthPct();
+  document.getElementById('growth-pct-val').textContent = gp;
+  document.getElementById('growth-pct-bar').style.width = gp + '%';
+
+  updateQuarters();
+
+  // Income
+  document.getElementById('stock-val').textContent   = state.stock.toFixed(1);
+  document.getElementById('pension-val').textContent = state.pension.toFixed(1);
+  document.getElementById('stock-bar').style.width   = clamp(pct(state.stock, 20), 0, 100) + '%';
+  document.getElementById('pension-bar').style.width = clamp(pct(state.pension, 15), 0, 100) + '%';
+  buildSpark();
+
+  // Family
+  buildMonthGrid();
+  const travelCount = (state.travel_months || []).filter(Boolean).length;
+  document.getElementById('travel-val').textContent = travelCount;
+  document.getElementById('travel-bar').style.width = pct(travelCount, 12) + '%';
+
+  // Overview
+  const fp = calcFitnessPct();
+  const gop = calcGrowthPct();
+  const ip = calcIncomePct();
+  const famp = calcFamilyPct();
+
+  document.getElementById('ov-fitness').innerHTML = fp + '<span style="font-size:16px;opacity:.5">%</span>';
+  document.getElementById('ov-growth').innerHTML  = gop + '<span style="font-size:16px;opacity:.5">%</span>';
+  document.getElementById('ov-income').innerHTML  = ip + '<span style="font-size:16px;opacity:.5">%</span>';
+  document.getElementById('ov-family').innerHTML  = famp + '<span style="font-size:16px;opacity:.5">%</span>';
+
+  document.getElementById('ov-fitness-sub').textContent = `조깅 ${state.jogging.toFixed(1)}km / 900km`;
+  document.getElementById('ov-growth-sub').textContent  = `영어 ${state.toeic_h1 !== null || state.toeic_h2 !== null ? '응시완료' : '미응시'} · 자격증 ${['q1','q2','q3','q4'].filter(q=>state.cert[q]).length}개`;
+  document.getElementById('ov-income-sub').textContent  = `주식 ${state.stock > 0 ? '+' : ''}${state.stock.toFixed(1)}% / 연금 ${state.pension > 0 ? '+' : ''}${state.pension.toFixed(1)}%`;
+  document.getElementById('ov-family-sub').textContent  = `여행 ${travelCount}회 / 교육 ${['q1','q2','q3','q4'].filter(q=>state.edu[q]).length}회`;
+
+  // Overall
+  const overall = Math.round((fp + gop + ip + famp) / 4);
+  document.getElementById('overallScore').textContent = overall + '%';
+
+  // Last updated
+  document.getElementById('lastUpdated').textContent =
+    'LAST UPDATED — ' + fmtDate(state.last_updated);
+
+  updateYearProgress();
+}
+
+// ── TODAY RESET (매일 오늘 운동 초기화) ──
+function checkTodayReset() {
+  const t = today();
+  if (state.last_today_reset !== t) {
+    state.pullup_today = 0;
+    state.squat_today  = 0;
+    state.pushup_today = 0;
+    state.last_today_reset = t;
+    // 저장은 save 시에만 (실시간 리셋은 UI용)
+  }
+}
+
+// ── FIREBASE LOAD ──
+async function loadData() {
+  // 안전장치: 5초 안에 Firebase 응답 없으면 강제로 로딩 해제
+  const safetyTimer = setTimeout(() => {
+    console.warn('Firebase 응답 타임아웃 — 기본값으로 렌더링');
+    showToast('⚠ Firebase 연결 지연. Firestore가 활성화되었는지 확인해주세요.');
+    renderAll();
+    hideLoading();
+  }, 5000);
+
+  try {
+    const snap = await DOC.get();
+    clearTimeout(safetyTimer); // 정상 응답 시 타임아웃 취소
+    if (snap.exists) {
+      const data = snap.data();
+      state = Object.assign({}, DEFAULT, data);
+      if (!state.jogging_log)   state.jogging_log = [];
+      if (!state.stock_monthly) state.stock_monthly = new Array(12).fill(null);
+      if (!state.travel_months) state.travel_months = new Array(12).fill(false);
+      if (!state.travel_themes) state.travel_themes = new Array(12).fill('');
+      if (!state.cert)          state.cert = { q1:null, q2:null, q3:null, q4:null };
+      if (!state.edu)           state.edu  = { q1:null, q2:null, q3:null, q4:null };
+    }
+  } catch(e) {
+    clearTimeout(safetyTimer); // 에러 시에도 타임아웃 취소
+    console.error('Firestore load error:', e);
+    showToast('⚠ 데이터 로드 실패. 오프라인 모드로 전환됩니다.');
+  }
+  renderAll();
+  hideLoading();
+}
+
+// ── FIREBASE SAVE ──
+async function saveData() {
+  try {
+    state.last_updated = new Date();
+    await DOC.set(state);
+    showToast('✓ 저장 완료');
+  } catch(e) {
+    console.error('Firestore save error:', e);
+    showToast('⚠ 저장 실패. 잠시 후 다시 시도하세요.');
+  }
+}
+
+// ── MODAL HELPERS ──
+function openModal(type) {
+  document.getElementById('modal-' + type).classList.add('open');
+}
+function closeModal(type) {
+  document.getElementById('modal-' + type).classList.remove('open');
+  // Clear inputs
+  const modal = document.getElementById('modal-' + type);
+  modal.querySelectorAll('input').forEach(el => el.value = '');
+  modal.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+  if (type === 'growth') { toggleGrowthFields(); }
+  if (type === 'family') { toggleFamilyFields(); }
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) {
+      const type = overlay.id.replace('modal-', '');
+      closeModal(type);
+    }
+  });
+});
+
+// ESC key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => {
+      const type = m.id.replace('modal-', '');
+      closeModal(type);
+    });
+  }
+});
+
+function toggleGrowthFields() {
+  const v = document.getElementById('g-type').value;
+  document.getElementById('g-toeic-fields').style.display = v === 'toeic' ? '' : 'none';
+  document.getElementById('g-cert-fields').style.display  = v === 'cert'  ? '' : 'none';
+}
+function toggleFamilyFields() {
+  const v = document.getElementById('fam-type').value;
+  document.getElementById('fam-travel-fields').style.display = v === 'travel' ? '' : 'none';
+  document.getElementById('fam-edu-fields').style.display    = v === 'edu'    ? '' : 'none';
+}
+
+// ── SAVE HANDLERS ──
+async function saveFitness() {
+  const joggingAdd = parseFloat(document.getElementById('f-jogging').value) || 0;
+  const pullup = parseInt(document.getElementById('f-pullup').value) || 0;
+  const squat  = parseInt(document.getElementById('f-squat').value)  || 0;
+  const pushup = parseInt(document.getElementById('f-pushup').value) || 0;
+  const memo   = document.getElementById('f-memo').value.trim();
+
+  if (joggingAdd > 0) {
+    state.jogging = parseFloat((state.jogging + joggingAdd).toFixed(2));
+    state.jogging_log = state.jogging_log || [];
+    state.jogging_log.push({ date: today(), km: joggingAdd, memo });
+  }
+  if (pullup > 0) state.pullup_today = clamp(pullup, 0, 200);
+  if (squat  > 0) state.squat_today  = clamp(squat,  0, 200);
+  if (pushup > 0) state.pushup_today = clamp(pushup, 0, 200);
+
+  state.last_today_reset = today();
+  closeModal('fitness');
+  renderAll();
+  await saveData();
+}
+
+async function saveGrowth() {
+  const type = document.getElementById('g-type').value;
+  if (!type) { showToast('항목을 선택해주세요'); return; }
+
+  if (type === 'toeic') {
+    const half  = document.getElementById('g-toeic-half').value;
+    const score = parseInt(document.getElementById('g-toeic-score').value);
+    if (!score || score < 0 || score > 990) { showToast('올바른 점수를 입력해주세요 (0~990)'); return; }
+    if (half === 'h1') state.toeic_h1 = score;
+    else               state.toeic_h2 = score;
+  } else {
+    const q    = document.getElementById('g-cert-quarter').value;
+    const name = document.getElementById('g-cert-name').value.trim();
+    if (!name) { showToast('자격증명을 입력해주세요'); return; }
+    state.cert[q] = name;
+  }
+
+  closeModal('growth');
+  renderAll();
+  await saveData();
+}
+
+async function saveIncome() {
+  const stock  = parseFloat(document.getElementById('i-stock').value);
+  const pension = parseFloat(document.getElementById('i-pension').value);
+  const month  = parseInt(document.getElementById('i-month').value);
+
+  if (!isNaN(stock))   state.stock   = stock;
+  if (!isNaN(pension)) state.pension = pension;
+  if (!isNaN(stock) && month >= 0 && month <= 11) {
+    state.stock_monthly = state.stock_monthly || new Array(12).fill(null);
+    state.stock_monthly[month] = stock;
+  }
+
+  closeModal('income');
+  renderAll();
+  await saveData();
+}
+
+async function saveFamily() {
+  const type = document.getElementById('fam-type').value;
+  if (!type) { showToast('항목을 선택해주세요'); return; }
+
+  if (type === 'travel') {
+    const month = parseInt(document.getElementById('fam-travel-month').value);
+    const theme = document.getElementById('fam-travel-theme').value.trim();
+    if (!theme) { showToast('테마를 입력해주세요'); return; }
+    state.travel_months = state.travel_months || new Array(12).fill(false);
+    state.travel_themes = state.travel_themes || new Array(12).fill('');
+    state.travel_months[month] = true;
+    state.travel_themes[month] = theme;
+  } else {
+    const q    = document.getElementById('fam-edu-quarter').value;
+    const name = document.getElementById('fam-edu-name').value.trim();
+    if (!name) { showToast('행사명을 입력해주세요'); return; }
+    state.edu[q] = name;
+  }
+
+  closeModal('family');
+  renderAll();
+  await saveData();
+}
+
+// ── TOAST ──
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── LOADING ──
+let loadingHidden = false;
+function hideLoading() {
+  if (loadingHidden) return;
+  loadingHidden = true;
+  const el = document.getElementById('loading-overlay');
+  el.style.opacity = '0';
+  setTimeout(() => { el.style.display = 'none'; }, 400);
+}
+
+// ── INIT ──
+loadData();
+</script>
+
+</body>
+</html>
