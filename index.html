@@ -475,6 +475,90 @@ body {
   font-size:24px; letter-spacing:4px; color:var(--muted);
   animation:pulse 1.5s infinite;
 }
+
+/* ── QUICK CHECK BUTTONS ── */
+.quick-check-row {
+  display:flex; gap:6px; flex-wrap:wrap;
+  margin-top:10px; padding-top:10px;
+  border-top:1px solid var(--border);
+}
+.quick-btn {
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:6px; padding:5px 10px;
+  color:var(--muted); font-family:'JetBrains Mono',monospace;
+  font-size:10px; letter-spacing:.5px;
+  cursor:pointer; transition:all .2s;
+}
+.quick-btn:hover { border-color:var(--fitness); color:var(--fitness); }
+.quick-btn.checked { background:rgba(0,229,160,.12); border-color:rgba(0,229,160,.4); color:var(--fitness); }
+
+/* ── TOOLTIP for month pills (multi-log) ── */
+.month-pill { position:relative; }
+.pill-tooltip {
+  display:none;
+  position:absolute; bottom:calc(100% + 6px); left:50%;
+  transform:translateX(-50%);
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:6px; padding:8px 10px;
+  font-family:'Noto Sans KR',sans-serif; font-size:11px;
+  color:var(--text); white-space:nowrap;
+  z-index:500; min-width:120px; text-align:left;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);
+  pointer-events:none;
+}
+.month-pill:hover .pill-tooltip { display:block; }
+
+/* ── Q-BOX list display ── */
+.q-list { margin-top:4px; }
+.q-list-item {
+  font-size:9px; color:var(--growth); display:block;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  max-width:100%;
+}
+.q-box.done-f .q-list-item { color:var(--family); }
+
+/* ── REPORT BUTTON ── */
+.report-btn-wrap {
+  display:flex; justify-content:center;
+  margin-top:16px; margin-bottom:4px;
+}
+.report-btn {
+  background:none; border:1px solid var(--border);
+  border-radius:8px; padding:10px 24px;
+  color:var(--muted); font-family:'JetBrains Mono',monospace;
+  font-size:11px; letter-spacing:1.5px;
+  cursor:pointer; transition:all .2s;
+  display:flex; align-items:center; gap:8px;
+}
+.report-btn:hover { border-color:var(--growth); color:var(--growth); }
+
+/* ── REPORT MODAL ── */
+#modal-report .modal {
+  width:min(640px,92vw);
+  max-height:85vh;
+  overflow-y:auto;
+}
+.report-body {
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px; line-height:1.8;
+  color:var(--text); white-space:pre-wrap;
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:8px; padding:16px;
+  margin-bottom:16px; overflow-x:auto;
+}
+.report-actions {
+  display:flex; gap:10px; justify-content:flex-end;
+}
+.btn-report-copy, .btn-report-print {
+  border:none; border-radius:6px;
+  padding:9px 20px;
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:13px; font-weight:700;
+  cursor:pointer; transition:opacity .2s;
+}
+.btn-report-copy { background:var(--growth); color:#000; }
+.btn-report-print { background:var(--muted); color:#000; }
+.btn-report-copy:hover, .btn-report-print:hover { opacity:.85; }
 </style>
 
 </head>
@@ -493,7 +577,7 @@ body {
     <h1>2026 GOALS</h1>
     <div class="live-row">
       <div class="live-dot"></div>
-      <span class="live-label">LIVE TRACKING — MJ</span>
+      <span class="live-label">목표대로 삶을 얼마나 잘 이끌고 있는가 — MJ</span>
     </div>
   </div>
   <div class="header-right">
@@ -584,6 +668,12 @@ body {
 
 <div class="streak-label" style="margin-top:14px;">조깅 STREAK — 최근 10주</div>
 <div class="streak-row" id="streakMap"></div>
+
+<div class="quick-check-row">
+  <button class="quick-btn" id="qc-pullup" onclick="quickCheck('pullup')" title="오늘 턱걸이 완료">💪 턱걸이</button>
+  <button class="quick-btn" id="qc-squat"  onclick="quickCheck('squat')"  title="오늘 스쿼트 완료">🔥 스쿼트</button>
+  <button class="quick-btn" id="qc-pushup" onclick="quickCheck('pushup')" title="오늘 팔굽혀펴기 완료">✊ 팔굽혀펴기</button>
+</div>
 
 <div class="log-btn-row">
   <button class="log-btn" onclick="openModal('fitness')">+ LOG 실적</button>
@@ -721,6 +811,12 @@ body {
 
 </div>
 
+<!-- REPORT BUTTON -->
+
+<div class="report-btn-wrap">
+  <button class="report-btn" onclick="openReport()">📄 연간 보고서</button>
+</div>
+
 <!-- BOTTOM -->
 
 <div class="bottom-strip">
@@ -825,7 +921,7 @@ body {
       </select>
     </div>
     <div class="field-group">
-      <label class="field-label">자격증명</label>
+      <label class="field-label">자격증명 <span style="color:var(--growth)">*</span></label>
       <input class="field-input" id="g-cert-name" type="text" placeholder="예: 정보처리기사">
     </div>
   </div>
@@ -896,26 +992,20 @@ body {
 </div>
 
 <div id="fam-travel-fields" style="display:none">
-  <div class="field-row">
-    <div class="field-group">
-      <label class="field-label">월</label>
-      <select class="field-select" id="fam-travel-month">
-        <option value="0">1월</option><option value="1">2월</option>
-        <option value="2">3월</option><option value="3">4월</option>
-        <option value="4">5월</option><option value="5">6월</option>
-        <option value="6">7월</option><option value="7">8월</option>
-        <option value="8">9월</option><option value="9">10월</option>
-        <option value="10">11월</option><option value="11">12월</option>
-      </select>
-    </div>
-    <div class="field-group">
-      <label class="field-label">횟수</label>
-      <input class="field-input" id="fam-travel-count" type="number" min="1" max="10" value="1" placeholder="1">
-    </div>
+  <div class="field-group">
+    <label class="field-label">여행 이름 <span style="color:var(--family)">*</span></label>
+    <input class="field-input" id="fam-travel-theme" type="text" placeholder="예: 속초 바다 여행, 제주 가족">
   </div>
   <div class="field-group" style="margin-top:8px">
-    <label class="field-label">테마 (선택)</label>
-    <input class="field-input" id="fam-travel-theme" type="text" placeholder="예: 속초 바다 여행">
+    <label class="field-label">월</label>
+    <select class="field-select" id="fam-travel-month">
+      <option value="0">1월</option><option value="1">2월</option>
+      <option value="2">3월</option><option value="3">4월</option>
+      <option value="4">5월</option><option value="5">6월</option>
+      <option value="6">7월</option><option value="7">8월</option>
+      <option value="8">9월</option><option value="9">10월</option>
+      <option value="10">11월</option><option value="11">12월</option>
+    </select>
   </div>
 </div>
 
@@ -929,7 +1019,7 @@ body {
       </select>
     </div>
     <div class="field-group">
-      <label class="field-label">행사명</label>
+      <label class="field-label">행사명 <span style="color:var(--family)">*</span></label>
       <input class="field-input" id="fam-edu-name" type="text" placeholder="예: 과학관 체험">
     </div>
   </div>
@@ -940,6 +1030,22 @@ body {
   <button class="btn-save" id="save-family" style="background:var(--family)" onclick="saveFamily()">저장</button>
 </div>
 
+  </div>
+</div>
+
+<!-- REPORT MODAL -->
+
+<div class="modal-overlay" id="modal-report">
+  <div class="modal" style="width:min(640px,92vw);max-height:85vh;overflow-y:auto;">
+    <button class="modal-close" onclick="closeModal('report')">✕</button>
+    <div class="modal-title" style="color:var(--growth)">연간 보고서</div>
+    <div class="modal-sub">2026 목표 이행 현황</div>
+    <div class="modal-accent-bar" style="background:var(--growth)"></div>
+    <div class="report-body" id="report-content"></div>
+    <div class="report-actions">
+      <button class="btn-report-copy" onclick="copyReport()">복사</button>
+      <button class="btn-report-print" onclick="printReport()">인쇄</button>
+    </div>
   </div>
 </div>
 
@@ -976,13 +1082,18 @@ const DEFAULT = {
   jogging_log: [],        // [{date:'2026-01-01', km:5.2}]
   toeic_h1: null,
   toeic_h2: null,
+  // 구버전 호환 유지 (마이그레이션 대상)
   cert: { q1:null, q2:null, q3:null, q4:null },
+  edu: { q1:null, q2:null, q3:null, q4:null },
+  travel_months: new Array(12).fill(0),
+  travel_themes: new Array(12).fill(''),
+  // 신버전: 복수 기록 배열
+  travel_logs: [],   // [{month:0, theme:'속초 바다', date:'2026-01-15'}]
+  edu_logs: [],      // [{quarter:'q1', name:'과학관 체험', date:'2026-03-10'}]
+  cert_logs: [],     // [{quarter:'q1', name:'정보처리기사', date:'2026-03-20'}]
   stock: 0,
   pension: 0,
   stock_monthly: new Array(12).fill(null),  // 월별 수익률
-  travel_months: new Array(12).fill(0),     // 월별 여행 횟수 (정수)
-  travel_themes: new Array(12).fill(''),
-  edu: { q1:null, q2:null, q3:null, q4:null },
   last_updated: null
 };
 
@@ -1078,46 +1189,65 @@ function buildMonthGrid() {
   container.innerHTML = '';
   const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const curMonth = new Date().getMonth();
-  const travelMonths = state.travel_months || new Array(12).fill(0);
+  const logs = state.travel_logs || [];
 
   months.forEach((m, i) => {
-    // 구버전 boolean 호환 처리
-    const rawVal = travelMonths[i];
-    const count = typeof rawVal === 'boolean' ? (rawVal ? 1 : 0) : (rawVal || 0);
+    const monthLogs = logs.filter(l => l.month === i);
+    const count = monthLogs.length;
     const pill = document.createElement('div');
     let cls = 'month-pill';
     if (count > 0) cls += ' done';
     else if (i === curMonth) cls += ' current';
     pill.className = cls;
-    if (count > 1)      pill.innerHTML = `${m}<br>${count}회`;
+    if (count > 1)        pill.innerHTML = `${m}<br>${count}회`;
     else if (count === 1) pill.innerHTML = `${m}<br>✓`;
     else                  pill.innerHTML = m;
-    pill.title = state.travel_themes[i] || '';
+
+    // 툴팁: 복수 여행 목록 표시
+    if (count > 0) {
+      const tooltip = document.createElement('div');
+      tooltip.className = 'pill-tooltip';
+      tooltip.innerHTML = monthLogs.map(l => `• ${l.theme || '(제목없음)'}${l.date ? ' <span style="color:var(--muted);font-size:10px">' + l.date + '</span>' : ''}`).join('<br>');
+      pill.appendChild(tooltip);
+    } else {
+      pill.title = '';
+    }
     container.appendChild(pill);
   });
 }
 
 // ── QUARTER BOXES ──
 function updateQuarters() {
-  // Cert
+  // Cert (cert_logs 기반)
   ['q1','q2','q3','q4'].forEach(q => {
     const el = document.getElementById('cert-' + q);
-    const val = state.cert[q];
-    if (val) {
+    const qLogs = (state.cert_logs || []).filter(l => l.quarter === q);
+    // 구버전 cert 호환
+    const legacyVal = state.cert && state.cert[q];
+    if (qLogs.length > 0) {
       el.className = 'q-box done';
-      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">${val}</div>`;
+      const listHtml = qLogs.map(l => `<span class="q-list-item">▸ ${l.name}</span>`).join('');
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-list">${listHtml}</div>`;
+    } else if (legacyVal) {
+      el.className = 'q-box done';
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">${legacyVal}</div>`;
     } else {
       el.className = 'q-box';
       el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">예정</div>`;
     }
   });
-  // Edu
+  // Edu (edu_logs 기반)
   ['q1','q2','q3','q4'].forEach(q => {
     const el = document.getElementById('edu-' + q);
-    const val = state.edu[q];
-    if (val) {
+    const qLogs = (state.edu_logs || []).filter(l => l.quarter === q);
+    const legacyVal = state.edu && state.edu[q];
+    if (qLogs.length > 0) {
       el.className = 'q-box done-f';
-      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">${val}</div>`;
+      const listHtml = qLogs.map(l => `<span class="q-list-item">▸ ${l.name}</span>`).join('');
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-list">${listHtml}</div>`;
+    } else if (legacyVal) {
+      el.className = 'q-box done-f';
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">${legacyVal}</div>`;
     } else {
       el.className = 'q-box';
       el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">예정</div>`;
@@ -1137,7 +1267,11 @@ function calcFitnessPct() {
 
 function calcGrowthPct() {
   const toeicDone = (state.toeic_h1 !== null ? 1 : 0) + (state.toeic_h2 !== null ? 1 : 0);
-  const certDone  = ['q1','q2','q3','q4'].filter(q => state.cert[q]).length;
+  // cert_logs 기반 (분기별 1회 이상이면 달성)
+  const certLogs = state.cert_logs || [];
+  const certDone = ['q1','q2','q3','q4'].filter(q =>
+    certLogs.some(l => l.quarter === q) || (state.cert && state.cert[q])
+  ).length;
   return Math.round(((toeicDone / 2) + (certDone / 4)) / 2 * 100);
 }
 
@@ -1148,10 +1282,18 @@ function calcIncomePct() {
 }
 
 function calcFamilyPct() {
-  const tm = state.travel_months || [];
-  // boolean(구버전) 또는 정수(신버전) 모두 처리
-  const travelDone = tm.filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
-  const eduDone    = ['q1','q2','q3','q4'].filter(q => state.edu[q]).length;
+  // travel_logs 기반: 월별 unique 달성 수
+  const travelLogs = state.travel_logs || [];
+  const travelDoneMonths = new Set(travelLogs.map(l => l.month)).size;
+  // 구버전 호환: travel_logs 없으면 travel_months 사용
+  const travelDone = travelLogs.length > 0
+    ? travelDoneMonths
+    : (state.travel_months || []).filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
+  // edu_logs 기반 (분기별 1회 이상이면 달성)
+  const eduLogs = state.edu_logs || [];
+  const eduDone = ['q1','q2','q3','q4'].filter(q =>
+    eduLogs.some(l => l.quarter === q) || (state.edu && state.edu[q])
+  ).length;
   return Math.round(((travelDone / 12) + (eduDone / 4)) / 2 * 100);
 }
 
@@ -1199,9 +1341,13 @@ function renderAll() {
 
   // Family
   buildMonthGrid();
-  const travelMArr = state.travel_months || [];
-  const travelMonthsDone = travelMArr.filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
-  const travelTotal = travelMArr.reduce((a, v) => a + (typeof v === 'boolean' ? (v ? 1 : 0) : (v || 0)), 0);
+  const travelLogs = state.travel_logs || [];
+  const travelMonthsDone = travelLogs.length > 0
+    ? new Set(travelLogs.map(l => l.month)).size
+    : (state.travel_months || []).filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
+  const travelTotal = travelLogs.length > 0
+    ? travelLogs.length
+    : (state.travel_months || []).reduce((a, v) => a + (typeof v === 'boolean' ? (v ? 1 : 0) : (v || 0)), 0);
   document.getElementById('travel-months-done').textContent = travelMonthsDone;
   document.getElementById('travel-val').textContent = travelTotal;
   document.getElementById('travel-bar').style.width = pct(travelMonthsDone, 12) + '%';
@@ -1218,9 +1364,13 @@ function renderAll() {
   document.getElementById('ov-family').innerHTML  = famp + '<span style="font-size:16px;opacity:.5">%</span>';
 
   document.getElementById('ov-fitness-sub').textContent = `조깅 ${state.jogging.toFixed(1)}km / 900km`;
-  document.getElementById('ov-growth-sub').textContent  = `영어 ${state.toeic_h1 !== null || state.toeic_h2 !== null ? '응시완료' : '미응시'} · 자격증 ${['q1','q2','q3','q4'].filter(q=>state.cert[q]).length}개`;
+  const certLogsAll = state.cert_logs || [];
+  const certQsDone = ['q1','q2','q3','q4'].filter(q => certLogsAll.some(l=>l.quarter===q)||(state.cert&&state.cert[q])).length;
+  document.getElementById('ov-growth-sub').textContent  = `영어 ${state.toeic_h1 !== null || state.toeic_h2 !== null ? '응시완료' : '미응시'} · 자격증 ${certQsDone}분기`;
   document.getElementById('ov-income-sub').textContent  = `주식 ${state.stock > 0 ? '+' : ''}${state.stock.toFixed(1)}% / 연금 ${state.pension > 0 ? '+' : ''}${state.pension.toFixed(1)}%`;
-  document.getElementById('ov-family-sub').textContent  = `여행 ${travelMonthsDone}/12월 (총${travelTotal}회) · 교육 ${['q1','q2','q3','q4'].filter(q=>state.edu[q]).length}회`;
+  const eduLogsAll = state.edu_logs || [];
+  const eduQsDone = ['q1','q2','q3','q4'].filter(q => eduLogsAll.some(l=>l.quarter===q)||(state.edu&&state.edu[q])).length;
+  document.getElementById('ov-family-sub').textContent  = `여행 ${travelMonthsDone}/12월 (총${travelTotal}회) · 교육 ${eduQsDone}분기`;
 
   // Overall
   const overall = Math.round((fp + gop + ip + famp) / 4);
@@ -1231,6 +1381,7 @@ function renderAll() {
     'LAST UPDATED — ' + fmtDate(state.last_updated);
 
   updateYearProgress();
+  updateQuickCheckButtons();
 }
 
 
@@ -1266,6 +1417,40 @@ async function loadData() {
           typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : 0)
         );
       }
+      // travel_logs: 신버전 배열 초기화 + 구버전 travel_themes 마이그레이션
+      if (!state.travel_logs) {
+        state.travel_logs = [];
+        // 구버전 travel_themes 가 있으면 travel_logs 로 변환
+        if (state.travel_themes) {
+          state.travel_themes.forEach((theme, i) => {
+            if (theme && (state.travel_months[i] || 0) > 0) {
+              state.travel_logs.push({ month: i, theme, date: '' });
+            }
+          });
+        }
+      }
+      // edu_logs: 신버전 배열 초기화 + 구버전 edu 마이그레이션
+      if (!state.edu_logs) {
+        state.edu_logs = [];
+        if (state.edu) {
+          ['q1','q2','q3','q4'].forEach(q => {
+            if (state.edu[q]) {
+              state.edu_logs.push({ quarter: q, name: state.edu[q], date: '' });
+            }
+          });
+        }
+      }
+      // cert_logs: 신버전 배열 초기화 + 구버전 cert 마이그레이션
+      if (!state.cert_logs) {
+        state.cert_logs = [];
+        if (state.cert) {
+          ['q1','q2','q3','q4'].forEach(q => {
+            if (state.cert[q]) {
+              state.cert_logs.push({ quarter: q, name: state.cert[q], date: '' });
+            }
+          });
+        }
+      }
     }
   } catch(e) {
     clearTimeout(safetyTimer); // 에러 시에도 타임아웃 취소
@@ -1289,6 +1474,14 @@ async function saveData() {
 }
 
 // ── MODAL HELPERS ──
+function currentQuarter() {
+  const m = new Date().getMonth(); // 0-based
+  if (m <= 2) return 'q1';
+  if (m <= 5) return 'q2';
+  if (m <= 8) return 'q3';
+  return 'q4';
+}
+
 function openModal(type) {
   document.getElementById('modal-' + type).classList.add('open');
   if (type === 'fitness') {
@@ -1297,7 +1490,12 @@ function openModal(type) {
   }
   if (type === 'family') {
     document.getElementById('fam-travel-month').value = new Date().getMonth();
-    document.getElementById('fam-travel-count').value = 1;
+    document.getElementById('fam-edu-quarter').value = currentQuarter();
+  }
+  if (type === 'growth') {
+    document.getElementById('g-cert-quarter').value = currentQuarter();
+    // 토익 반기도 현재 반기로
+    document.getElementById('g-toeic-half').value = new Date().getMonth() < 6 ? 'h1' : 'h2';
   }
 }
 function closeModal(type) {
@@ -1397,6 +1595,10 @@ async function saveGrowth() {
     const q    = document.getElementById('g-cert-quarter').value;
     const name = document.getElementById('g-cert-name').value.trim();
     if (!name) { showToast('자격증명을 입력해주세요'); return; }
+    state.cert_logs = state.cert_logs || [];
+    state.cert_logs.push({ quarter: q, name, date: today() });
+    // 구버전 호환 필드도 마지막 값으로 유지
+    state.cert = state.cert || { q1:null, q2:null, q3:null, q4:null };
     state.cert[q] = name;
   }
 
@@ -1429,24 +1631,170 @@ async function saveFamily() {
   if (type === 'travel') {
     const month = parseInt(document.getElementById('fam-travel-month').value);
     const theme = document.getElementById('fam-travel-theme').value.trim();
-    const count = parseInt(document.getElementById('fam-travel-count').value) || 1;
     if (isNaN(month) || month < 0 || month > 11) { showToast('올바른 월을 선택해주세요'); return; }
+    if (!theme) { showToast('여행 테마(이름)를 입력해주세요'); return; }
+    // travel_logs 에 추가 (1회 = 1항목)
+    state.travel_logs = state.travel_logs || [];
+    state.travel_logs.push({ month, theme, date: today() });
+    // 구버전 호환 필드도 갱신
     state.travel_months = state.travel_months || new Array(12).fill(0);
     state.travel_themes = state.travel_themes || new Array(12).fill('');
-    // 숫자형으로 누적 (구버전 boolean 호환)
     const cur = state.travel_months[month];
-    state.travel_months[month] = (typeof cur === 'boolean' ? (cur ? 1 : 0) : (cur || 0)) + count;
-    if (theme) state.travel_themes[month] = theme;  // 테마 입력 시에만 갱신
+    state.travel_months[month] = (typeof cur === 'boolean' ? (cur ? 1 : 0) : (cur || 0)) + 1;
+    state.travel_themes[month] = theme;
   } else {
     const q    = document.getElementById('fam-edu-quarter').value;
     const name = document.getElementById('fam-edu-name').value.trim();
     if (!name) { showToast('행사명을 입력해주세요'); return; }
+    state.edu_logs = state.edu_logs || [];
+    state.edu_logs.push({ quarter: q, name, date: today() });
+    // 구버전 호환 필드도 갱신
+    state.edu = state.edu || { q1:null, q2:null, q3:null, q4:null };
     state.edu[q] = name;
   }
 
   closeModal('family');
   renderAll();
   await saveData();
+}
+
+// ── ANNUAL REPORT ──
+function generateReportText() {
+  const curYear = new Date().getFullYear().toString();
+  const MONTHS_KR = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+  // Fitness
+  const pullupCount = (state.pullup_days || []).filter(d => d.startsWith(curYear)).length;
+  const squatCount  = (state.squat_days  || []).filter(d => d.startsWith(curYear)).length;
+  const pushupCount = (state.pushup_days || []).filter(d => d.startsWith(curYear)).length;
+  const joggingPct  = pct(state.jogging, 900);
+  const pullupPct   = pct(pullupCount, 300);
+  const squatPct    = pct(squatCount, 300);
+  const pushupPct   = pct(pushupCount, 300);
+
+  // Growth
+  const certLogs = state.cert_logs || [];
+  const certLines = ['q1','q2','q3','q4'].map(q => {
+    const ql = certLogs.filter(l => l.quarter === q);
+    const legacy = state.cert && state.cert[q];
+    if (ql.length > 0) return `  • 자격증 ${q.toUpperCase()}: ${ql.map(l=>l.name).join(', ')}`;
+    if (legacy) return `  • 자격증 ${q.toUpperCase()}: ${legacy}`;
+    return `  • 자격증 ${q.toUpperCase()}: 없음`;
+  }).join('\n');
+
+  // Family travel
+  const travelLogs = state.travel_logs || [];
+  const travelDoneMonths = new Set(travelLogs.map(l => l.month)).size;
+  const travelByMonth = {};
+  travelLogs.forEach(l => {
+    if (!travelByMonth[l.month]) travelByMonth[l.month] = [];
+    travelByMonth[l.month].push(l.theme || '(제목없음)');
+  });
+  const travelLines = Object.entries(travelByMonth).sort((a,b)=>+a[0]-+b[0]).map(([m, themes]) =>
+    `    - ${MONTHS_KR[+m]}: ${themes.join(', ')}`
+  ).join('\n');
+
+  // Family edu
+  const eduLogs = state.edu_logs || [];
+  const eduDoneQs = new Set(eduLogs.map(l => l.quarter)).size;
+  const eduLines = ['q1','q2','q3','q4'].map(q => {
+    const ql = eduLogs.filter(l => l.quarter === q);
+    const legacy = state.edu && state.edu[q];
+    if (ql.length > 0) return `    - ${q.toUpperCase()}: ${ql.map(l=>l.name).join(', ')}`;
+    if (legacy) return `    - ${q.toUpperCase()}: ${legacy}`;
+    return null;
+  }).filter(Boolean).join('\n');
+
+  // Overall
+  const fp   = calcFitnessPct();
+  const gp   = calcGrowthPct();
+  const ip   = calcIncomePct();
+  const famp = calcFamilyPct();
+  const overall = Math.round((fp + gp + ip + famp) / 4);
+
+  return `2026 목표 이행 보고서
+━━━━━━━━━━━━━━━━━━━━━━
+
+[체력]
+  • 조깅: ${state.jogging.toFixed(1)} km / 900 km (${joggingPct}%)
+  • 턱걸이: ${pullupCount}일 / 300일 (${pullupPct}%)
+  • 스쿼트: ${squatCount}일 / 300일 (${squatPct}%)
+  • 팔굽혀펴기: ${pushupCount}일 / 300일 (${pushupPct}%)
+  → 체력 달성도: ${fp}%
+
+[성장]
+  • 영어(상반기): ${state.toeic_h1 !== null ? state.toeic_h1 + '점' : '미응시'}
+  • 영어(하반기): ${state.toeic_h2 !== null ? state.toeic_h2 + '점' : '미응시'}
+${certLines}
+  → 성장 달성도: ${gp}%
+
+[수입/투자]
+  • 주식 수익률: ${state.stock > 0 ? '+' : ''}${state.stock.toFixed(1)}% (목표 +20%)
+  • 연금 수익률: ${state.pension > 0 ? '+' : ''}${state.pension.toFixed(1)}% (목표 +15%)
+  → 투자 달성도: ${ip}%
+
+[가족]
+  • 테마여행: ${travelDoneMonths}개월 달성 / 12개월 (총 ${travelLogs.length}회)
+${travelLines ? travelLines : '    (기록 없음)'}
+  • 가족교육: ${eduDoneQs}분기 달성 / 4분기
+${eduLines ? eduLines : '    (기록 없음)'}
+  → 가족 달성도: ${famp}%
+
+━━━━━━━━━━━━━━━━━━━━━━
+종합 달성도: ${overall}%
+생성 일시: ${new Date().toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})}`;
+}
+
+function openReport() {
+  const text = generateReportText();
+  document.getElementById('report-content').textContent = text;
+  document.getElementById('modal-report').classList.add('open');
+}
+
+function copyReport() {
+  const text = document.getElementById('report-content').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('✓ 보고서가 클립보드에 복사되었습니다');
+  }).catch(() => {
+    showToast('⚠ 복사 실패. 직접 선택 후 복사해주세요.');
+  });
+}
+
+function printReport() {
+  const text = document.getElementById('report-content').textContent;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>2026 목표 이행 보고서</title>
+<style>body{font-family:monospace;font-size:13px;line-height:1.8;padding:40px;white-space:pre-wrap;}</style>
+</head><body>${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</body></html>`);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+// ── QUICK CHECK ──
+async function quickCheck(type) {
+  const todayStr = today();
+  const key = type + '_days';
+  state[key] = state[key] || [];
+  if (state[key].includes(todayStr)) {
+    showToast('오늘 이미 체크됨 ✓');
+    return;
+  }
+  state[key].push(todayStr);
+  updateQuickCheckButtons();
+  renderAll();
+  await saveData();
+}
+
+function updateQuickCheckButtons() {
+  const todayStr = today();
+  ['pullup','squat','pushup'].forEach(t => {
+    const btn = document.getElementById('qc-' + t);
+    if (!btn) return;
+    const done = (state[t + '_days'] || []).includes(todayStr);
+    if (done) btn.classList.add('checked');
+    else      btn.classList.remove('checked');
+  });
 }
 
 // ── TOAST ──
