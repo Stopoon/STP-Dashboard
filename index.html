@@ -557,7 +557,7 @@ body {
 <div class="goal-row">
   <div class="goal-meta">
     <span class="goal-name">💪 턱걸이</span>
-    <span class="goal-nums">오늘 <strong id="pullup-val">0</strong> / 40 개</span>
+    <span class="goal-nums">올해 <strong id="pullup-val">0</strong> / 300 일</span>
   </div>
   <div class="progress-track">
     <div class="progress-fill" id="pullup-bar" style="width:0%"></div>
@@ -566,7 +566,7 @@ body {
 <div class="goal-row">
   <div class="goal-meta">
     <span class="goal-name">🔥 스쿼트</span>
-    <span class="goal-nums">오늘 <strong id="squat-val">0</strong> / 40 개</span>
+    <span class="goal-nums">올해 <strong id="squat-val">0</strong> / 300 일</span>
   </div>
   <div class="progress-track">
     <div class="progress-fill" id="squat-bar" style="width:0%"></div>
@@ -575,7 +575,7 @@ body {
 <div class="goal-row">
   <div class="goal-meta">
     <span class="goal-name">✊ 팔굽혀펴기</span>
-    <span class="goal-nums">오늘 <strong id="pushup-val">0</strong> / 40 개</span>
+    <span class="goal-nums">올해 <strong id="pushup-val">0</strong> / 300 일</span>
   </div>
   <div class="progress-track">
     <div class="progress-fill" id="pushup-bar" style="width:0%"></div>
@@ -706,7 +706,7 @@ body {
 <div class="goal-row" style="margin-top:16px;">
   <div class="goal-meta">
     <span class="goal-name">여행 달성률</span>
-    <span class="goal-nums"><strong id="travel-val">0</strong> / 12 회</span>
+    <span class="goal-nums">달성 <strong id="travel-months-done">0</strong>/12월 · 총 <strong id="travel-val">0</strong>회</span>
   </div>
   <div class="progress-track">
     <div class="progress-fill" id="travel-bar" style="width:0%"></div>
@@ -739,27 +739,32 @@ body {
   <div class="modal">
     <button class="modal-close" onclick="closeModal('fitness')">✕</button>
     <div class="modal-title" style="color:var(--fitness)">체력 실적 입력</div>
-    <div class="modal-sub">오늘의 운동 실적을 입력하세요</div>
+    <div class="modal-sub">날짜를 선택하고 운동 완료를 체크하세요</div>
     <div class="modal-accent-bar" style="background:var(--fitness)"></div>
 
-<div class="field-row">
-  <div class="field-group">
-    <label class="field-label">조깅 (km, 누적 추가)</label>
-    <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 5.2">
-  </div>
-  <div class="field-group">
-    <label class="field-label">턱걸이 (개, 오늘)</label>
-    <input class="field-input" id="f-pullup" type="number" min="0" max="200" placeholder="예: 40">
-  </div>
+<div class="field-group">
+  <label class="field-label">조깅 연간 총 누적 거리 (km)</label>
+  <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 150.5">
+  <div id="f-jogging-hint" style="font-size:10px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px"></div>
 </div>
-<div class="field-row">
+<div class="field-row" style="margin-top:4px">
   <div class="field-group">
-    <label class="field-label">스쿼트 (개, 오늘)</label>
-    <input class="field-input" id="f-squat" type="number" min="0" max="200" placeholder="예: 40">
+    <label class="field-label">운동 날짜</label>
+    <input class="field-input" id="f-exercise-date" type="date">
   </div>
   <div class="field-group">
-    <label class="field-label">팔굽혀펴기 (개, 오늘)</label>
-    <input class="field-input" id="f-pushup" type="number" min="0" max="200" placeholder="예: 40">
+    <label class="field-label">완료 운동</label>
+    <div style="display:flex;flex-direction:column;gap:8px;padding:8px 0">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="f-pullup-done" style="accent-color:var(--fitness);width:16px;height:16px"> 💪 턱걸이
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="f-squat-done" style="accent-color:var(--fitness);width:16px;height:16px"> 🔥 스쿼트
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="f-pushup-done" style="accent-color:var(--fitness);width:16px;height:16px"> ✊ 팔굽혀펴기
+      </label>
+    </div>
   </div>
 </div>
 <div class="field-group">
@@ -961,9 +966,9 @@ const DOC = db.collection('goals').doc('2026');
 // ── DEFAULT STATE ──
 const DEFAULT = {
   jogging: 0,
-  pullup_today: 0,
-  squat_today: 0,
-  pushup_today: 0,
+  pullup_days: [],        // ["2026-01-15", ...] 완료 날짜 목록
+  squat_days: [],
+  pushup_days: [],
   jogging_log: [],        // [{date:'2026-01-01', km:5.2}]
   toeic_h1: null,
   toeic_h2: null,
@@ -971,11 +976,10 @@ const DEFAULT = {
   stock: 0,
   pension: 0,
   stock_monthly: new Array(12).fill(null),  // 월별 수익률
-  travel_months: new Array(12).fill(false),  // 월별 여행 완료
+  travel_months: new Array(12).fill(0),     // 월별 여행 횟수 (정수)
   travel_themes: new Array(12).fill(''),
   edu: { q1:null, q2:null, q3:null, q4:null },
-  last_updated: null,
-  last_today_reset: null  // "YYYY-MM-DD" 형식
+  last_updated: null
 };
 
 let state = JSON.parse(JSON.stringify(DEFAULT));
@@ -1070,15 +1074,20 @@ function buildMonthGrid() {
   container.innerHTML = '';
   const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
   const curMonth = new Date().getMonth();
-  const travelDone = state.travel_months || new Array(12).fill(false);
+  const travelMonths = state.travel_months || new Array(12).fill(0);
 
   months.forEach((m, i) => {
+    // 구버전 boolean 호환 처리
+    const rawVal = travelMonths[i];
+    const count = typeof rawVal === 'boolean' ? (rawVal ? 1 : 0) : (rawVal || 0);
     const pill = document.createElement('div');
     let cls = 'month-pill';
-    if (travelDone[i]) cls += ' done';
+    if (count > 0) cls += ' done';
     else if (i === curMonth) cls += ' current';
     pill.className = cls;
-    pill.innerHTML = travelDone[i] ? `${m}<br>✓` : m;
+    if (count > 1)      pill.innerHTML = `${m}<br>${count}회`;
+    else if (count === 1) pill.innerHTML = `${m}<br>✓`;
+    else                  pill.innerHTML = m;
     pill.title = state.travel_themes[i] || '';
     container.appendChild(pill);
   });
@@ -1115,9 +1124,10 @@ function updateQuarters() {
 // ── OVERVIEW SCORES ──
 function calcFitnessPct() {
   const joggingP = pct(state.jogging, 900);
-  const pullupP  = pct(state.pullup_today, 40);
-  const squatP   = pct(state.squat_today, 40);
-  const pushupP  = pct(state.pushup_today, 40);
+  const curYear  = new Date().getFullYear().toString();
+  const pullupP  = pct((state.pullup_days || []).filter(d => d.startsWith(curYear)).length, 300);
+  const squatP   = pct((state.squat_days  || []).filter(d => d.startsWith(curYear)).length, 300);
+  const pushupP  = pct((state.pushup_days || []).filter(d => d.startsWith(curYear)).length, 300);
   return Math.round((joggingP + pullupP + squatP + pushupP) / 4);
 }
 
@@ -1134,25 +1144,30 @@ function calcIncomePct() {
 }
 
 function calcFamilyPct() {
-  const travelDone = (state.travel_months || []).filter(Boolean).length;
+  const tm = state.travel_months || [];
+  // boolean(구버전) 또는 정수(신버전) 모두 처리
+  const travelDone = tm.filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
   const eduDone    = ['q1','q2','q3','q4'].filter(q => state.edu[q]).length;
   return Math.round(((travelDone / 12) + (eduDone / 4)) / 2 * 100);
 }
 
 // ── RENDER ALL ──
 function renderAll() {
-  // Today reset check
-  checkTodayReset();
+  const curYear = new Date().getFullYear().toString();
 
   // Fitness bars
   document.getElementById('jogging-val').textContent = state.jogging.toFixed(1);
   document.getElementById('jogging-bar').style.width = pct(state.jogging, 900) + '%';
-  document.getElementById('pullup-val').textContent = state.pullup_today;
-  document.getElementById('pullup-bar').style.width = pct(state.pullup_today, 40) + '%';
-  document.getElementById('squat-val').textContent = state.squat_today;
-  document.getElementById('squat-bar').style.width = pct(state.squat_today, 40) + '%';
-  document.getElementById('pushup-val').textContent = state.pushup_today;
-  document.getElementById('pushup-bar').style.width = pct(state.pushup_today, 40) + '%';
+
+  const pullupCount = (state.pullup_days || []).filter(d => d.startsWith(curYear)).length;
+  const squatCount  = (state.squat_days  || []).filter(d => d.startsWith(curYear)).length;
+  const pushupCount = (state.pushup_days || []).filter(d => d.startsWith(curYear)).length;
+  document.getElementById('pullup-val').textContent = pullupCount;
+  document.getElementById('pullup-bar').style.width = pct(pullupCount, 300) + '%';
+  document.getElementById('squat-val').textContent  = squatCount;
+  document.getElementById('squat-bar').style.width  = pct(squatCount, 300) + '%';
+  document.getElementById('pushup-val').textContent = pushupCount;
+  document.getElementById('pushup-bar').style.width = pct(pushupCount, 300) + '%';
 
   buildStreak();
 
@@ -1180,9 +1195,12 @@ function renderAll() {
 
   // Family
   buildMonthGrid();
-  const travelCount = (state.travel_months || []).filter(Boolean).length;
-  document.getElementById('travel-val').textContent = travelCount;
-  document.getElementById('travel-bar').style.width = pct(travelCount, 12) + '%';
+  const travelMArr = state.travel_months || [];
+  const travelMonthsDone = travelMArr.filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
+  const travelTotal = travelMArr.reduce((a, v) => a + (typeof v === 'boolean' ? (v ? 1 : 0) : (v || 0)), 0);
+  document.getElementById('travel-months-done').textContent = travelMonthsDone;
+  document.getElementById('travel-val').textContent = travelTotal;
+  document.getElementById('travel-bar').style.width = pct(travelMonthsDone, 12) + '%';
 
   // Overview
   const fp = calcFitnessPct();
@@ -1198,7 +1216,7 @@ function renderAll() {
   document.getElementById('ov-fitness-sub').textContent = `조깅 ${state.jogging.toFixed(1)}km / 900km`;
   document.getElementById('ov-growth-sub').textContent  = `영어 ${state.toeic_h1 !== null || state.toeic_h2 !== null ? '응시완료' : '미응시'} · 자격증 ${['q1','q2','q3','q4'].filter(q=>state.cert[q]).length}개`;
   document.getElementById('ov-income-sub').textContent  = `주식 ${state.stock > 0 ? '+' : ''}${state.stock.toFixed(1)}% / 연금 ${state.pension > 0 ? '+' : ''}${state.pension.toFixed(1)}%`;
-  document.getElementById('ov-family-sub').textContent  = `여행 ${travelCount}회 / 교육 ${['q1','q2','q3','q4'].filter(q=>state.edu[q]).length}회`;
+  document.getElementById('ov-family-sub').textContent  = `여행 ${travelMonthsDone}/12월 (총${travelTotal}회) · 교육 ${['q1','q2','q3','q4'].filter(q=>state.edu[q]).length}회`;
 
   // Overall
   const overall = Math.round((fp + gop + ip + famp) / 4);
@@ -1211,17 +1229,6 @@ function renderAll() {
   updateYearProgress();
 }
 
-// ── TODAY RESET (매일 오늘 운동 초기화) ──
-function checkTodayReset() {
-  const t = today();
-  if (state.last_today_reset !== t) {
-    state.pullup_today = 0;
-    state.squat_today  = 0;
-    state.pushup_today = 0;
-    state.last_today_reset = t;
-    // 저장은 save 시에만 (실시간 리셋은 UI용)
-  }
-}
 
 // ── FIREBASE LOAD ──
 async function loadData() {
@@ -1241,10 +1248,20 @@ async function loadData() {
       state = Object.assign({}, DEFAULT, data);
       if (!state.jogging_log)   state.jogging_log = [];
       if (!state.stock_monthly) state.stock_monthly = new Array(12).fill(null);
-      if (!state.travel_months) state.travel_months = new Array(12).fill(false);
       if (!state.travel_themes) state.travel_themes = new Array(12).fill('');
       if (!state.cert)          state.cert = { q1:null, q2:null, q3:null, q4:null };
       if (!state.edu)           state.edu  = { q1:null, q2:null, q3:null, q4:null };
+      if (!state.pullup_days)   state.pullup_days = [];
+      if (!state.squat_days)    state.squat_days  = [];
+      if (!state.pushup_days)   state.pushup_days = [];
+      // travel_months: boolean 배열(구버전) → 정수 배열(신버전) 마이그레이션
+      if (!state.travel_months) {
+        state.travel_months = new Array(12).fill(0);
+      } else {
+        state.travel_months = state.travel_months.map(v =>
+          typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : 0)
+        );
+      }
     }
   } catch(e) {
     clearTimeout(safetyTimer); // 에러 시에도 타임아웃 취소
@@ -1270,12 +1287,17 @@ async function saveData() {
 // ── MODAL HELPERS ──
 function openModal(type) {
   document.getElementById('modal-' + type).classList.add('open');
+  if (type === 'fitness') {
+    document.getElementById('f-exercise-date').value = today();
+    document.getElementById('f-jogging-hint').textContent = '현재 누적: ' + state.jogging.toFixed(1) + ' km — 새 값 입력 시 대체됩니다';
+  }
 }
 function closeModal(type) {
   document.getElementById('modal-' + type).classList.remove('open');
   // Clear inputs
   const modal = document.getElementById('modal-' + type);
-  modal.querySelectorAll('input').forEach(el => el.value = '');
+  modal.querySelectorAll('input[type!="checkbox"]').forEach(el => el.value = '');
+  modal.querySelectorAll('input[type="checkbox"]').forEach(el => el.checked = false);
   modal.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
   if (type === 'growth') { toggleGrowthFields(); }
   if (type === 'family') { toggleFamilyFields(); }
@@ -1314,22 +1336,40 @@ function toggleFamilyFields() {
 
 // ── SAVE HANDLERS ──
 async function saveFitness() {
-  const joggingAdd = parseFloat(document.getElementById('f-jogging').value) || 0;
-  const pullup = parseInt(document.getElementById('f-pullup').value) || 0;
-  const squat  = parseInt(document.getElementById('f-squat').value)  || 0;
-  const pushup = parseInt(document.getElementById('f-pushup').value) || 0;
-  const memo   = document.getElementById('f-memo').value.trim();
+  const joggingInput   = document.getElementById('f-jogging').value;
+  const exerciseDate   = document.getElementById('f-exercise-date').value;
+  const pullupDone     = document.getElementById('f-pullup-done').checked;
+  const squatDone      = document.getElementById('f-squat-done').checked;
+  const pushupDone     = document.getElementById('f-pushup-done').checked;
+  const memo           = document.getElementById('f-memo').value.trim();
 
-  if (joggingAdd > 0) {
-    state.jogging = parseFloat((state.jogging + joggingAdd).toFixed(2));
-    state.jogging_log = state.jogging_log || [];
-    state.jogging_log.push({ date: today(), km: joggingAdd, memo });
+  // 조깅: 총 누적값으로 대체 (증가했을 때만 streak 기록)
+  if (joggingInput !== '') {
+    const joggingVal = parseFloat(joggingInput);
+    if (!isNaN(joggingVal) && joggingVal >= 0) {
+      const diff = parseFloat((joggingVal - state.jogging).toFixed(2));
+      if (diff > 0) {
+        state.jogging_log = state.jogging_log || [];
+        state.jogging_log.push({ date: exerciseDate || today(), km: diff, memo });
+      }
+      state.jogging = parseFloat(joggingVal.toFixed(2));
+    }
   }
-  if (pullup > 0) state.pullup_today = clamp(pullup, 0, 200);
-  if (squat  > 0) state.squat_today  = clamp(squat,  0, 200);
-  if (pushup > 0) state.pushup_today = clamp(pushup, 0, 200);
 
-  state.last_today_reset = today();
+  // 운동 체크: 날짜별 완료 기록 (중복 방지)
+  if (exerciseDate) {
+    state.pullup_days = state.pullup_days || [];
+    state.squat_days  = state.squat_days  || [];
+    state.pushup_days = state.pushup_days || [];
+    if (pullupDone && !state.pullup_days.includes(exerciseDate)) state.pullup_days.push(exerciseDate);
+    if (squatDone  && !state.squat_days.includes(exerciseDate))  state.squat_days.push(exerciseDate);
+    if (pushupDone && !state.pushup_days.includes(exerciseDate)) state.pushup_days.push(exerciseDate);
+  }
+
+  if (joggingInput === '' && !pullupDone && !squatDone && !pushupDone) {
+    showToast('입력값이 없습니다'); return;
+  }
+
   closeModal('fitness');
   renderAll();
   await saveData();
@@ -1382,10 +1422,13 @@ async function saveFamily() {
     const month = parseInt(document.getElementById('fam-travel-month').value);
     const theme = document.getElementById('fam-travel-theme').value.trim();
     if (!theme) { showToast('테마를 입력해주세요'); return; }
-    state.travel_months = state.travel_months || new Array(12).fill(false);
+    if (isNaN(month) || month < 0 || month > 11) { showToast('올바른 월을 선택해주세요'); return; }
+    state.travel_months = state.travel_months || new Array(12).fill(0);
     state.travel_themes = state.travel_themes || new Array(12).fill('');
-    state.travel_months[month] = true;
-    state.travel_themes[month] = theme;
+    // 숫자형으로 누적 (구버전 boolean 호환)
+    const cur = state.travel_months[month];
+    state.travel_months[month] = (typeof cur === 'boolean' ? (cur ? 1 : 0) : (cur || 0)) + 1;
+    state.travel_themes[month] = theme;  // 가장 최근 테마로 갱신
   } else {
     const q    = document.getElementById('fam-edu-quarter').value;
     const name = document.getElementById('fam-edu-name').value.trim();
