@@ -909,9 +909,13 @@ body {
       </select>
     </div>
     <div class="field-group">
-      <label class="field-label">테마</label>
-      <input class="field-input" id="fam-travel-theme" type="text" placeholder="예: 속초 바다 여행">
+      <label class="field-label">횟수</label>
+      <input class="field-input" id="fam-travel-count" type="number" min="1" max="10" value="1" placeholder="1">
     </div>
+  </div>
+  <div class="field-group" style="margin-top:8px">
+    <label class="field-label">테마 (선택)</label>
+    <input class="field-input" id="fam-travel-theme" type="text" placeholder="예: 속초 바다 여행">
   </div>
 </div>
 
@@ -1163,11 +1167,11 @@ function renderAll() {
   const squatCount  = (state.squat_days  || []).filter(d => d.startsWith(curYear)).length;
   const pushupCount = (state.pushup_days || []).filter(d => d.startsWith(curYear)).length;
   document.getElementById('pullup-val').textContent = pullupCount;
-  document.getElementById('pullup-bar').style.width = pct(pullupCount, 300) + '%';
+  document.getElementById('pullup-bar').style.width = (pullupCount > 0 ? Math.max(1, pct(pullupCount, 300)) : 0) + '%';
   document.getElementById('squat-val').textContent  = squatCount;
-  document.getElementById('squat-bar').style.width  = pct(squatCount, 300) + '%';
+  document.getElementById('squat-bar').style.width  = (squatCount > 0 ? Math.max(1, pct(squatCount, 300)) : 0) + '%';
   document.getElementById('pushup-val').textContent = pushupCount;
-  document.getElementById('pushup-bar').style.width = pct(pushupCount, 300) + '%';
+  document.getElementById('pushup-bar').style.width = (pushupCount > 0 ? Math.max(1, pct(pushupCount, 300)) : 0) + '%';
 
   buildStreak();
 
@@ -1290,6 +1294,10 @@ function openModal(type) {
   if (type === 'fitness') {
     document.getElementById('f-exercise-date').value = today();
     document.getElementById('f-jogging-hint').textContent = '현재 누적: ' + state.jogging.toFixed(1) + ' km — 새 값 입력 시 대체됩니다';
+  }
+  if (type === 'family') {
+    document.getElementById('fam-travel-month').value = new Date().getMonth();
+    document.getElementById('fam-travel-count').value = 1;
   }
 }
 function closeModal(type) {
@@ -1421,14 +1429,14 @@ async function saveFamily() {
   if (type === 'travel') {
     const month = parseInt(document.getElementById('fam-travel-month').value);
     const theme = document.getElementById('fam-travel-theme').value.trim();
-    if (!theme) { showToast('테마를 입력해주세요'); return; }
+    const count = parseInt(document.getElementById('fam-travel-count').value) || 1;
     if (isNaN(month) || month < 0 || month > 11) { showToast('올바른 월을 선택해주세요'); return; }
     state.travel_months = state.travel_months || new Array(12).fill(0);
     state.travel_themes = state.travel_themes || new Array(12).fill('');
     // 숫자형으로 누적 (구버전 boolean 호환)
     const cur = state.travel_months[month];
-    state.travel_months[month] = (typeof cur === 'boolean' ? (cur ? 1 : 0) : (cur || 0)) + 1;
-    state.travel_themes[month] = theme;  // 가장 최근 테마로 갱신
+    state.travel_months[month] = (typeof cur === 'boolean' ? (cur ? 1 : 0) : (cur || 0)) + count;
+    if (theme) state.travel_themes[month] = theme;  // 테마 입력 시에만 갱신
   } else {
     const q    = document.getElementById('fam-edu-quarter').value;
     const name = document.getElementById('fam-edu-name').value.trim();
