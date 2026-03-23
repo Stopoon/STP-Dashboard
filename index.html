@@ -1280,10 +1280,12 @@ function renderAll() {
   updateQuarters();
 
   // Income
-  document.getElementById('stock-val').textContent   = state.stock.toFixed(1);
-  document.getElementById('pension-val').textContent = state.pension.toFixed(1);
-  document.getElementById('stock-bar').style.width   = clamp(pct(state.stock, 20), 0, 100) + '%';
-  document.getElementById('pension-bar').style.width = clamp(pct(state.pension, 15), 0, 100) + '%';
+  const stockV   = parseFloat(state.stock)   || 0;
+  const pensionV = parseFloat(state.pension) || 0;
+  document.getElementById('stock-val').textContent   = stockV.toFixed(1);
+  document.getElementById('pension-val').textContent = pensionV.toFixed(1);
+  document.getElementById('stock-bar').style.width   = clamp(pct(stockV, 20), 0, 100) + '%';
+  document.getElementById('pension-bar').style.width = clamp(pct(pensionV, 15), 0, 100) + '%';
   buildSpark();
 
   // Family
@@ -1308,7 +1310,7 @@ function renderAll() {
 
   document.getElementById('ov-fitness-sub').textContent = `조깅 ${state.jogging.toFixed(1)}km / 900km`;
   document.getElementById('ov-growth-sub').textContent  = `영어 ${state.toeic_h1 !== null || state.toeic_h2 !== null ? '응시완료' : '미응시'} · 자격증 ${['q1','q2','q3','q4'].filter(q=>state.cert[q]).length}개`;
-  document.getElementById('ov-income-sub').textContent  = `주식 ${state.stock > 0 ? '+' : ''}${state.stock.toFixed(1)}% / 연금 ${state.pension > 0 ? '+' : ''}${state.pension.toFixed(1)}%`;
+  document.getElementById('ov-income-sub').textContent  = `주식 ${stockV > 0 ? '+' : ''}${stockV.toFixed(1)}% / 연금 ${pensionV > 0 ? '+' : ''}${pensionV.toFixed(1)}%`;
   const eduLogCount = (state.edu_log || []).length;
   document.getElementById('ov-family-sub').textContent  = `여행 ${travelMonthsDone}/12월 (총${travelTotal}회) · 교육 ${eduLogCount}회`;
 
@@ -1324,46 +1326,81 @@ function renderAll() {
 }
 
 
+// ── LOCALSTORAGE FALLBACK ──
+const LS_KEY = 'stp_2026_state';
+
+function applyTypeSafety(s) {
+  s.jogging  = parseFloat(s.jogging)  || 0;
+  s.stock    = parseFloat(s.stock)    || 0;
+  s.pension  = parseFloat(s.pension)  || 0;
+  if (!s.jogging_log)   s.jogging_log   = [];
+  if (!s.stock_monthly) s.stock_monthly = new Array(12).fill(null);
+  if (!s.travel_themes) s.travel_themes = new Array(12).fill('');
+  if (!s.cert)          s.cert = { q1:null, q2:null, q3:null, q4:null };
+  if (!s.edu)           s.edu  = { q1:null, q2:null, q3:null, q4:null };
+  if (!s.edu_log)       s.edu_log = [];
+  if (!s.pullup_days)   s.pullup_days = [];
+  if (!s.squat_days)    s.squat_days  = [];
+  if (!s.pushup_days)   s.pushup_days = [];
+  if (!s.travel_months) {
+    s.travel_months = new Array(12).fill(0);
+  } else {
+    s.travel_months = s.travel_months.map(v =>
+      typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : 0)
+    );
+  }
+}
+
+function saveToLS() {
+  try {
+    const snap = JSON.parse(JSON.stringify(state));
+    // Firestore Timestamp → ISO string for localStorage
+    if (snap.last_updated && typeof snap.last_updated.toDate === 'function')
+      snap.last_updated = snap.last_updated.toDate().toISOString();
+    localStorage.setItem(LS_KEY, JSON.stringify(snap));
+  } catch(e) { /* ignore */ }
+}
+
+function loadFromLS() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    state = Object.assign({}, DEFAULT, data);
+    applyTypeSafety(state);
+    return true;
+  } catch(e) { return false; }
+}
+
 // ── FIREBASE LOAD ──
 async function loadData() {
-  // 안전장치: 5초 안에 Firebase 응답 없으면 강제로 로딩 해제
+  // 안전장치: 5초 안에 Firebase 응답 없으면 로컬 데이터로 렌더링
   const safetyTimer = setTimeout(() => {
-    console.warn('Firebase 응답 타임아웃 — 기본값으로 렌더링');
-    showToast('⚠ Firebase 연결 지연. Firestore가 활성화되었는지 확인해주세요.');
+    console.warn('Firebase 응답 타임아웃 — 로컬 데이터로 렌더링');
+    const hasLocal = loadFromLS();
+    if (!hasLocal) showToast('⚠ Firebase 연결 지연. 데이터가 없습니다.');
     renderAll();
     hideLoading();
   }, 5000);
 
   try {
     const snap = await DOC.get();
-    clearTimeout(safetyTimer); // 정상 응답 시 타임아웃 취소
+    clearTimeout(safetyTimer);
     if (snap.exists) {
       const data = snap.data();
       state = Object.assign({}, DEFAULT, data);
-      // 타입 안전
-      state.jogging = parseFloat(state.jogging) || 0;
-      if (!state.jogging_log)   state.jogging_log = [];
-      if (!state.stock_monthly) state.stock_monthly = new Array(12).fill(null);
-      if (!state.travel_themes) state.travel_themes = new Array(12).fill('');
-      if (!state.cert)          state.cert = { q1:null, q2:null, q3:null, q4:null };
-      if (!state.edu)           state.edu  = { q1:null, q2:null, q3:null, q4:null };
-      if (!state.edu_log)       state.edu_log = [];
-      if (!state.pullup_days)   state.pullup_days = [];
-      if (!state.squat_days)    state.squat_days  = [];
-      if (!state.pushup_days)   state.pushup_days = [];
-      // travel_months: boolean 배열(구버전) → 정수 배열(신버전) 마이그레이션
-      if (!state.travel_months) {
-        state.travel_months = new Array(12).fill(0);
-      } else {
-        state.travel_months = state.travel_months.map(v =>
-          typeof v === 'boolean' ? (v ? 1 : 0) : (typeof v === 'number' ? v : 0)
-        );
-      }
+      applyTypeSafety(state);
+    } else {
+      // Firestore에 데이터 없음 → localStorage 복원 시도
+      loadFromLS();
     }
   } catch(e) {
-    clearTimeout(safetyTimer); // 에러 시에도 타임아웃 취소
+    clearTimeout(safetyTimer);
     console.error('Firestore load error:', e);
-    showToast('⚠ 데이터 로드 실패. 오프라인 모드로 전환됩니다.');
+    const hasLocal = loadFromLS();
+    showToast(hasLocal
+      ? '⚠ Firestore 연결 실패. 로컬 저장 데이터를 불러왔습니다.'
+      : '⚠ 데이터 로드 실패. 오프라인 모드입니다.');
   }
   renderAll();
   hideLoading();
@@ -1371,24 +1408,29 @@ async function loadData() {
 
 // ── FIREBASE SAVE ──
 async function saveData() {
+  // 배열 크기 제한 (Firestore 문서 1MB 초과 방지)
+  if ((state.jogging_log || []).length > 200)
+    state.jogging_log = state.jogging_log.slice(-200);
+  if ((state.pullup_days || []).length > 400)
+    state.pullup_days = state.pullup_days.slice(-400);
+  if ((state.squat_days || []).length > 400)
+    state.squat_days = state.squat_days.slice(-400);
+  if ((state.pushup_days || []).length > 400)
+    state.pushup_days = state.pushup_days.slice(-400);
+  // 타입 안전
+  state.jogging = parseFloat(state.jogging) || 0;
+  state.stock   = parseFloat(state.stock)   || 0;
+  state.pension = parseFloat(state.pension) || 0;
+
+  state.last_updated = new Date();
+  saveToLS(); // 항상 로컬에 저장 (Firestore 상태 무관)
+
   try {
-    state.last_updated = new Date();
-    // 배열 크기 제한 (Firestore 문서 1MB 초과 방지)
-    if ((state.jogging_log || []).length > 200)
-      state.jogging_log = state.jogging_log.slice(-200);
-    if ((state.pullup_days || []).length > 400)
-      state.pullup_days = state.pullup_days.slice(-400);
-    if ((state.squat_days || []).length > 400)
-      state.squat_days = state.squat_days.slice(-400);
-    if ((state.pushup_days || []).length > 400)
-      state.pushup_days = state.pushup_days.slice(-400);
-    // jogging 타입 안전
-    if (isNaN(state.jogging) || state.jogging == null) state.jogging = 0;
     await DOC.set(state);
     showToast('✓ 저장 완료 — 조깅 ' + state.jogging.toFixed(1) + ' km');
   } catch(e) {
     console.error('Firestore save error:', e);
-    showToast('⚠ 저장 실패: ' + (e.message || '네트워크 확인'));
+    showToast('✓ 로컬 저장 완료 (Firestore 비활성화)');
   }
 }
 
@@ -1543,6 +1585,7 @@ async function saveFamily() {
     if (!name) { showToast('행사명을 입력해주세요'); return; }
     state.edu_log = state.edu_log || [];
     state.edu_log.unshift({ q, name, date: today() }); // 최신이 앞으로
+    if (!state.edu) state.edu = { q1:null, q2:null, q3:null, q4:null };
     state.edu[q] = name; // 하위 호환
   }
 
