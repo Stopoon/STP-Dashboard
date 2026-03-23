@@ -760,8 +760,8 @@ body {
     <div class="modal-accent-bar" style="background:var(--fitness)"></div>
 
 <div class="field-group">
-  <label class="field-label">연간 실적 (km) — 입력값으로 대체됩니다</label>
-  <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 150.5">
+  <label class="field-label">오늘 조깅 거리 (km) — 현재 실적에 누적됩니다</label>
+  <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 5.5">
   <div id="f-jogging-hint" style="font-size:10px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px"></div>
 </div>
 <div class="field-row" style="margin-top:4px">
@@ -1479,7 +1479,7 @@ function openModal(type) {
   document.getElementById('modal-' + type).classList.add('open');
   if (type === 'fitness') {
     document.getElementById('f-exercise-date').value = today();
-    document.getElementById('f-jogging-hint').textContent = '현재 실적: ' + state.jogging.toFixed(1) + ' km — 새 값 입력 시 대체됩니다';
+    document.getElementById('f-jogging-hint').textContent = '현재 누적: ' + state.jogging.toFixed(1) + ' km → 오늘 거리 입력 시 합산됩니다';
   }
 }
 function closeModal(type) {
@@ -1533,18 +1533,24 @@ async function saveFitness() {
   const pushupDone     = document.getElementById('f-pushup-done').checked;
   const memo           = document.getElementById('f-memo').value.trim();
 
-  // 조깅: 입력값 = 연간 실적 (대체) — log는 streak용으로 날짜만 기록
+  // 조깅: 입력값을 현재 실적에 누적 (날짜별 중복 방지)
   if (joggingInput !== '') {
     const joggingVal = parseFloat(joggingInput);
-    if (!isNaN(joggingVal) && joggingVal >= 0) {
-      state.jogging = parseFloat(joggingVal.toFixed(2));
-      // streak 날짜 기록 (중복 방지, 최근 200개만 유지)
+    if (!isNaN(joggingVal) && joggingVal > 0) {
       const dateStr = exerciseDate || today();
       state.jogging_log = state.jogging_log || [];
-      if (!state.jogging_log.some(e => e.date === dateStr)) {
+      // 같은 날 이미 입력된 경우: 기존 항목 km 교체 후 차이만 누적
+      const existingIdx = state.jogging_log.findIndex(e => e.date === dateStr);
+      if (existingIdx >= 0) {
+        const prev = state.jogging_log[existingIdx].km || 0;
+        state.jogging = parseFloat((state.jogging - prev + joggingVal).toFixed(2));
+        state.jogging_log[existingIdx].km = joggingVal;
+      } else {
+        state.jogging = parseFloat((state.jogging + joggingVal).toFixed(2));
         state.jogging_log.push({ date: dateStr, km: joggingVal });
         if (state.jogging_log.length > 200) state.jogging_log = state.jogging_log.slice(-200);
       }
+      if (state.jogging < 0) state.jogging = 0;
     }
   }
 
