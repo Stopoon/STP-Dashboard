@@ -60,34 +60,41 @@ jobs:
               console.log(`기존 PR #${pr.data.number} 사용`);
             }
 
-            // mergeable 상태 폴링 (최대 10회, 3초 간격)
+            // mergeable 상태 폴링 (최대 24회, 5초 간격 = 최대 2분)
             let mergeable = null;
-            for (let i = 0; i < 10; i++) {
-              await new Promise(r => setTimeout(r, 3000));
+            for (let i = 0; i < 24; i++) {
+              await new Promise(r => setTimeout(r, 5000));
               const prDetail = await github.rest.pulls.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.data.number
               });
               mergeable = prDetail.data.mergeable;
-              console.log(`mergeable 상태 확인 (${i + 1}/10): ${mergeable}`);
+              console.log(`mergeable 상태 확인 (${i + 1}/24): ${mergeable}`);
               if (mergeable === true) break;
               if (mergeable === false) {
                 throw new Error(`PR #${pr.data.number} 병합 불가 상태입니다.`);
               }
             }
+
+            // 폴링 후에도 null이면 강제 시도 (GitHub가 느린 경우 대응)
             if (mergeable !== true) {
-              throw new Error('mergeable 상태 확인 타임아웃: 30초 내 확인 불가');
+              console.log('mergeable 확인 타임아웃 — merge 직접 시도합니다.');
             }
 
             // Merge PR
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.data.number,
-              merge_method: 'squash'
-            });
-            console.log(`PR #${pr.data.number} squash merge 완료`);
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.data.number,
+                merge_method: 'squash'
+              });
+              console.log(`PR #${pr.data.number} squash merge 완료`);
+            } catch (mergeErr) {
+              console.error(`merge 실패: ${mergeErr.message}`);
+              throw mergeErr;
+            }
 
             // 소스 브랜치 삭제
             try {
