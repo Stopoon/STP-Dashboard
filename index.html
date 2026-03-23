@@ -1340,6 +1340,8 @@ async function loadData() {
     if (snap.exists) {
       const data = snap.data();
       state = Object.assign({}, DEFAULT, data);
+      // 타입 안전
+      state.jogging = parseFloat(state.jogging) || 0;
       if (!state.jogging_log)   state.jogging_log = [];
       if (!state.stock_monthly) state.stock_monthly = new Array(12).fill(null);
       if (!state.travel_themes) state.travel_themes = new Array(12).fill('');
@@ -1371,11 +1373,22 @@ async function loadData() {
 async function saveData() {
   try {
     state.last_updated = new Date();
+    // 배열 크기 제한 (Firestore 문서 1MB 초과 방지)
+    if ((state.jogging_log || []).length > 200)
+      state.jogging_log = state.jogging_log.slice(-200);
+    if ((state.pullup_days || []).length > 400)
+      state.pullup_days = state.pullup_days.slice(-400);
+    if ((state.squat_days || []).length > 400)
+      state.squat_days = state.squat_days.slice(-400);
+    if ((state.pushup_days || []).length > 400)
+      state.pushup_days = state.pushup_days.slice(-400);
+    // jogging 타입 안전
+    if (isNaN(state.jogging) || state.jogging == null) state.jogging = 0;
     await DOC.set(state);
-    showToast('✓ 저장 완료');
+    showToast('✓ 저장 완료 — 조깅 ' + state.jogging.toFixed(1) + ' km');
   } catch(e) {
     console.error('Firestore save error:', e);
-    showToast('⚠ 저장 실패. 잠시 후 다시 시도하세요.');
+    showToast('⚠ 저장 실패: ' + (e.message || '네트워크 확인'));
   }
 }
 
@@ -1438,13 +1451,18 @@ async function saveFitness() {
   const pushupDone     = document.getElementById('f-pushup-done').checked;
   const memo           = document.getElementById('f-memo').value.trim();
 
-  // 조깅: 입력값 = 연간 실적 (대체)
+  // 조깅: 입력값 = 연간 실적 (대체) — log는 streak용으로 날짜만 기록
   if (joggingInput !== '') {
     const joggingVal = parseFloat(joggingInput);
     if (!isNaN(joggingVal) && joggingVal >= 0) {
-      state.jogging_log = state.jogging_log || [];
-      state.jogging_log.push({ date: exerciseDate || today(), km: joggingVal, memo });
       state.jogging = parseFloat(joggingVal.toFixed(2));
+      // streak 날짜 기록 (중복 방지, 최근 200개만 유지)
+      const dateStr = exerciseDate || today();
+      state.jogging_log = state.jogging_log || [];
+      if (!state.jogging_log.some(e => e.date === dateStr)) {
+        state.jogging_log.push({ date: dateStr, km: joggingVal });
+        if (state.jogging_log.length > 200) state.jogging_log = state.jogging_log.slice(-200);
+      }
     }
   }
 

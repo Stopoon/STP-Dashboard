@@ -10,115 +10,46 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Rebase branch onto main
+      - name: Apply branch changes directly to main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
+
           BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "Branch: $BRANCH"
+
           git fetch origin main
-          git checkout "$BRANCH"
-          # main과 동일하면 스킵
-          AHEAD=$(git rev-list origin/main..HEAD --count)
-          echo "Commits ahead of main: $AHEAD"
-          if [ "$AHEAD" -eq 0 ]; then
-            echo "No new commits. Skipping."
+          git fetch origin "$BRANCH"
+
+          # 파일 변경사항 비교
+          DIFF=$(git diff origin/main "origin/$BRANCH" -- .)
+          if [ -z "$DIFF" ]; then
+            echo "No file changes vs main. Skipping."
             exit 0
           fi
-          # main 위로 rebase
-          git rebase origin/main
-          # GITHUB_TOKEN push는 워크플로우 재트리거 안 됨
-          git push --force-with-lease origin "$BRANCH"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create PR and merge
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const branch = context.ref.replace('refs/heads/', '');
+          # main으로 이동 후 변경사항 적용
+          git checkout main
+          git diff origin/main "origin/$BRANCH" | git apply --whitespace=fix
+          git add -A
 
-            // Rebase 후 ahead_by 재확인
-            const comparison = await github.rest.repos.compareCommitsWithBasehead({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              basehead: `main...${branch}`
-            });
-            if (comparison.data.ahead_by === 0) {
-              console.log('신규 커밋 없음. 스킵.');
-              return;
-            }
+          # 커밋할 변경사항 확인
+          if git diff --staged --quiet; then
+            echo "Nothing to commit. Skipping."
+            exit 0
+          fi
 
-            // PR 생성
-            let pr;
-            try {
-              pr = await github.rest.pulls.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `Auto: ${branch}`,
-                head: branch,
-                base: 'main',
-                body: 'claude/* 브랜치 자동 머지'
-              });
-              console.log(`PR #${pr.data.number} 생성`);
-            } catch (e) {
-              if (e.message && e.message.includes('No commits between')) {
-                console.log('차이 없음. 스킵.'); return;
-              }
-              const prs = await github.rest.pulls.list({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                head: `${context.repo.owner}:${branch}`,
-                base: 'main',
-                state: 'open'
-              });
-              if (prs.data.length === 0) throw e;
-              pr = { data: prs.data[0] };
-              console.log(`기존 PR #${pr.data.number} 사용`);
-            }
+          git commit -m "Auto: $BRANCH"
+          git push origin main
 
-            // rebase 후엔 mergeable이 빠르게 true로 확인됨 (최대 12회 × 5초)
-            let mergeable = null;
-            for (let i = 0; i < 12; i++) {
-              await new Promise(r => setTimeout(r, 5000));
-              const detail = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.data.number
-              });
-              mergeable = detail.data.mergeable;
-              console.log(`mergeable (${i+1}/12): ${mergeable}`);
-              if (mergeable === true) break;
-              if (mergeable === false) throw new Error('병합 불가 상태');
-            }
-            // null 지속 시 직접 시도
-            if (mergeable !== true) console.log('null 지속 → merge 직접 시도');
-
-            // Merge
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.data.number,
-              merge_method: 'squash'
-            });
-            console.log(`PR #${pr.data.number} merge 완료`);
-
-            // 브랜치 삭제
-            try {
-              await github.rest.git.deleteRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: `heads/${branch}`
-              });
-              console.log(`브랜치 ${branch} 삭제`);
-            } catch (e) {
-              console.log(`브랜치 삭제 실패 (무시): ${e.message}`);
-            }
+          # 소스 브랜치 삭제
+          git push origin --delete "$BRANCH" || echo "Branch delete skipped"
