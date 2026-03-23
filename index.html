@@ -1254,81 +1254,83 @@ function calcFamilyPct() {
 function renderAll() {
   const curYear = new Date().getFullYear().toString();
 
-  // Fitness bars
-  document.getElementById('jogging-val').textContent = state.jogging.toFixed(1);
-  document.getElementById('jogging-bar').style.width = pct(state.jogging, 900) + '%';
+  // ── Fitness ──
+  try {
+    document.getElementById('jogging-val').textContent = state.jogging.toFixed(1);
+    document.getElementById('jogging-bar').style.width = pct(state.jogging, 900) + '%';
+    const pullupCount = (state.pullup_days || []).filter(d => d.startsWith(curYear)).length;
+    const squatCount  = (state.squat_days  || []).filter(d => d.startsWith(curYear)).length;
+    const pushupCount = (state.pushup_days || []).filter(d => d.startsWith(curYear)).length;
+    document.getElementById('pullup-val').textContent = pullupCount;
+    document.getElementById('pullup-bar').style.width = pct(pullupCount, 365) + '%';
+    document.getElementById('squat-val').textContent  = squatCount;
+    document.getElementById('squat-bar').style.width  = pct(squatCount, 365) + '%';
+    document.getElementById('pushup-val').textContent = pushupCount;
+    document.getElementById('pushup-bar').style.width = pct(pushupCount, 365) + '%';
+    buildStreak();
+  } catch(e) { console.error('renderAll[fitness]', e); }
 
-  const pullupCount = (state.pullup_days || []).filter(d => d.startsWith(curYear)).length;
-  const squatCount  = (state.squat_days  || []).filter(d => d.startsWith(curYear)).length;
-  const pushupCount = (state.pushup_days || []).filter(d => d.startsWith(curYear)).length;
-  document.getElementById('pullup-val').textContent = pullupCount;
-  document.getElementById('pullup-bar').style.width = pct(pullupCount, 365) + '%';
-  document.getElementById('squat-val').textContent  = squatCount;
-  document.getElementById('squat-bar').style.width  = pct(squatCount, 365) + '%';
-  document.getElementById('pushup-val').textContent = pushupCount;
-  document.getElementById('pushup-bar').style.width = pct(pushupCount, 365) + '%';
+  // ── Growth ──
+  try {
+    const h1El = document.getElementById('toeic-h1');
+    const h2El = document.getElementById('toeic-h2');
+    h1El.textContent = state.toeic_h1 !== null ? state.toeic_h1 : '—';
+    h1El.className   = 'toeic-score' + (state.toeic_h1 !== null && state.toeic_h1 >= 800 ? ' achieved' : '');
+    h2El.textContent = state.toeic_h2 !== null ? state.toeic_h2 : '—';
+    h2El.className   = 'toeic-score' + (state.toeic_h2 !== null && state.toeic_h2 >= 800 ? ' achieved' : '');
+    const gp = calcGrowthPct();
+    document.getElementById('growth-pct-val').textContent = gp;
+    document.getElementById('growth-pct-bar').style.width = gp + '%';
+    updateQuarters();
+  } catch(e) { console.error('renderAll[growth]', e); }
 
-  buildStreak();
+  // ── Income ──
+  try {
+    const stockV   = parseFloat(state.stock)   || 0;
+    const pensionV = parseFloat(state.pension) || 0;
+    document.getElementById('stock-val').textContent   = stockV.toFixed(1);
+    document.getElementById('pension-val').textContent = pensionV.toFixed(1);
+    document.getElementById('stock-bar').style.width   = clamp(pct(stockV, 20), 0, 100) + '%';
+    document.getElementById('pension-bar').style.width = clamp(pct(pensionV, 15), 0, 100) + '%';
+    buildSpark();
+  } catch(e) { console.error('renderAll[income]', e); }
 
-  // Toeic
-  const h1El = document.getElementById('toeic-h1');
-  const h2El = document.getElementById('toeic-h2');
-  h1El.textContent = state.toeic_h1 !== null ? state.toeic_h1 : '—';
-  h1El.className   = 'toeic-score' + (state.toeic_h1 !== null && state.toeic_h1 >= 800 ? ' achieved' : '');
-  h2El.textContent = state.toeic_h2 !== null ? state.toeic_h2 : '—';
-  h2El.className   = 'toeic-score' + (state.toeic_h2 !== null && state.toeic_h2 >= 800 ? ' achieved' : '');
+  // ── Family ──
+  try {
+    buildMonthGrid();
+    const travelMArr = state.travel_months || [];
+    const travelMonthsDone = travelMArr.filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
+    const travelTotal = travelMArr.reduce((a, v) => a + (typeof v === 'boolean' ? (v ? 1 : 0) : (v || 0)), 0);
+    document.getElementById('travel-months-done').textContent = travelMonthsDone;
+    document.getElementById('travel-val').textContent = travelTotal;
+    document.getElementById('travel-bar').style.width = pct(travelMonthsDone, 12) + '%';
+  } catch(e) { console.error('renderAll[family]', e); }
 
-  // Growth pct
-  const gp = calcGrowthPct();
-  document.getElementById('growth-pct-val').textContent = gp;
-  document.getElementById('growth-pct-bar').style.width = gp + '%';
-
-  updateQuarters();
-
-  // Income
-  const stockV   = parseFloat(state.stock)   || 0;
-  const pensionV = parseFloat(state.pension) || 0;
-  document.getElementById('stock-val').textContent   = stockV.toFixed(1);
-  document.getElementById('pension-val').textContent = pensionV.toFixed(1);
-  document.getElementById('stock-bar').style.width   = clamp(pct(stockV, 20), 0, 100) + '%';
-  document.getElementById('pension-bar').style.width = clamp(pct(pensionV, 15), 0, 100) + '%';
-  buildSpark();
-
-  // Family
-  buildMonthGrid();
-  const travelMArr = state.travel_months || [];
-  const travelMonthsDone = travelMArr.filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
-  const travelTotal = travelMArr.reduce((a, v) => a + (typeof v === 'boolean' ? (v ? 1 : 0) : (v || 0)), 0);
-  document.getElementById('travel-months-done').textContent = travelMonthsDone;
-  document.getElementById('travel-val').textContent = travelTotal;
-  document.getElementById('travel-bar').style.width = pct(travelMonthsDone, 12) + '%';
-
-  // Overview
-  const fp = calcFitnessPct();
-  const gop = calcGrowthPct();
-  const ip = calcIncomePct();
-  const famp = calcFamilyPct();
-
-  document.getElementById('ov-fitness').innerHTML = fp + '<span style="font-size:16px;opacity:.5">%</span>';
-  document.getElementById('ov-growth').innerHTML  = gop + '<span style="font-size:16px;opacity:.5">%</span>';
-  document.getElementById('ov-income').innerHTML  = ip + '<span style="font-size:16px;opacity:.5">%</span>';
-  document.getElementById('ov-family').innerHTML  = famp + '<span style="font-size:16px;opacity:.5">%</span>';
-
-  document.getElementById('ov-fitness-sub').textContent = `조깅 ${state.jogging.toFixed(1)}km / 900km`;
-  document.getElementById('ov-growth-sub').textContent  = `영어 ${state.toeic_h1 !== null || state.toeic_h2 !== null ? '응시완료' : '미응시'} · 자격증 ${['q1','q2','q3','q4'].filter(q=>state.cert[q]).length}개`;
-  document.getElementById('ov-income-sub').textContent  = `주식 ${stockV > 0 ? '+' : ''}${stockV.toFixed(1)}% / 연금 ${pensionV > 0 ? '+' : ''}${pensionV.toFixed(1)}%`;
-  const eduLogCount = (state.edu_log || []).length;
-  document.getElementById('ov-family-sub').textContent  = `여행 ${travelMonthsDone}/12월 (총${travelTotal}회) · 교육 ${eduLogCount}회`;
-
-  // Overall
-  const overall = Math.round((fp + gop + ip + famp) / 4);
-  document.getElementById('overallScore').textContent = overall + '%';
-
-  // Last updated
-  document.getElementById('lastUpdated').textContent =
-    'LAST UPDATED — ' + fmtDate(state.last_updated);
-
-  updateYearProgress();
+  // ── Overview ──
+  try {
+    const fp   = calcFitnessPct();
+    const gop  = calcGrowthPct();
+    const ip   = calcIncomePct();
+    const famp = calcFamilyPct();
+    document.getElementById('ov-fitness').innerHTML = fp   + '<span style="font-size:16px;opacity:.5">%</span>';
+    document.getElementById('ov-growth').innerHTML  = gop  + '<span style="font-size:16px;opacity:.5">%</span>';
+    document.getElementById('ov-income').innerHTML  = ip   + '<span style="font-size:16px;opacity:.5">%</span>';
+    document.getElementById('ov-family').innerHTML  = famp + '<span style="font-size:16px;opacity:.5">%</span>';
+    const stockV2   = parseFloat(state.stock)   || 0;
+    const pensionV2 = parseFloat(state.pension) || 0;
+    const travelMArr2 = state.travel_months || [];
+    const travelMonthsDone2 = travelMArr2.filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
+    const travelTotal2 = travelMArr2.reduce((a, v) => a + (typeof v === 'boolean' ? (v ? 1 : 0) : (v || 0)), 0);
+    document.getElementById('ov-fitness-sub').textContent = `조깅 ${state.jogging.toFixed(1)}km / 900km`;
+    document.getElementById('ov-growth-sub').textContent  = `영어 ${state.toeic_h1 !== null || state.toeic_h2 !== null ? '응시완료' : '미응시'} · 자격증 ${['q1','q2','q3','q4'].filter(q=>state.cert[q]).length}개`;
+    document.getElementById('ov-income-sub').textContent  = `주식 ${stockV2 > 0 ? '+' : ''}${stockV2.toFixed(1)}% / 연금 ${pensionV2 > 0 ? '+' : ''}${pensionV2.toFixed(1)}%`;
+    const eduLogCount = (state.edu_log || []).length;
+    document.getElementById('ov-family-sub').textContent  = `여행 ${travelMonthsDone2}/12월 (총${travelTotal2}회) · 교육 ${eduLogCount}회`;
+    const overall = Math.round((fp + gop + ip + famp) / 4);
+    document.getElementById('overallScore').textContent = overall + '%';
+    document.getElementById('lastUpdated').textContent = 'LAST UPDATED — ' + fmtDate(state.last_updated);
+    updateYearProgress();
+  } catch(e) { console.error('renderAll[overview]', e); }
 }
 
 
@@ -1336,19 +1338,25 @@ function renderAll() {
 const LS_KEY = 'stp_2026_state';
 
 function applyTypeSafety(s) {
-  s.jogging  = parseFloat(s.jogging)  || 0;
-  s.stock    = parseFloat(s.stock)    || 0;
-  s.pension  = parseFloat(s.pension)  || 0;
-  if (!s.jogging_log)   s.jogging_log   = [];
-  if (!s.stock_monthly) s.stock_monthly = new Array(12).fill(null);
-  if (!s.travel_themes) s.travel_themes = new Array(12).fill('');
-  if (!s.cert)          s.cert = { q1:null, q2:null, q3:null, q4:null };
-  if (!s.edu)           s.edu  = { q1:null, q2:null, q3:null, q4:null };
-  if (!s.edu_log)       s.edu_log = [];
-  if (!s.pullup_days)   s.pullup_days = [];
-  if (!s.squat_days)    s.squat_days  = [];
-  if (!s.pushup_days)   s.pushup_days = [];
-  if (!s.travel_months) {
+  s.jogging = parseFloat(s.jogging) || 0;
+  s.stock   = parseFloat(s.stock)   || 0;
+  s.pension = parseFloat(s.pension) || 0;
+  // 배열 타입 보장 + null/손상 항목 제거
+  s.jogging_log = Array.isArray(s.jogging_log)
+    ? s.jogging_log.filter(e => e && typeof e === 'object' && e.date) : [];
+  s.pullup_days = Array.isArray(s.pullup_days)
+    ? s.pullup_days.filter(d => typeof d === 'string') : [];
+  s.squat_days  = Array.isArray(s.squat_days)
+    ? s.squat_days.filter(d => typeof d === 'string') : [];
+  s.pushup_days = Array.isArray(s.pushup_days)
+    ? s.pushup_days.filter(d => typeof d === 'string') : [];
+  s.edu_log = Array.isArray(s.edu_log)
+    ? s.edu_log.filter(e => e && typeof e === 'object') : [];
+  if (!Array.isArray(s.stock_monthly)) s.stock_monthly = new Array(12).fill(null);
+  if (!Array.isArray(s.travel_themes)) s.travel_themes = new Array(12).fill('');
+  if (!s.cert || typeof s.cert !== 'object') s.cert = { q1:null, q2:null, q3:null, q4:null };
+  if (!s.edu  || typeof s.edu  !== 'object') s.edu  = { q1:null, q2:null, q3:null, q4:null };
+  if (!Array.isArray(s.travel_months)) {
     s.travel_months = new Array(12).fill(0);
   } else {
     s.travel_months = s.travel_months.map(v =>
@@ -1385,32 +1393,51 @@ function safeRender() {
 }
 
 // ── DATA LOAD ──
+// Firestore Timestamp or ISO string → epoch ms
+function tsToMs(ts) {
+  if (!ts) return 0;
+  if (ts.seconds != null) return ts.seconds * 1000;       // Firestore Timestamp
+  const t = new Date(ts).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
 async function loadData() {
+  // 1. 항상 localStorage 먼저 로드 (즉시, 네트워크 불필요)
+  loadFromLS();
+
   if (!DOC) {
-    loadFromLS();
     safeRender();
     return;
   }
 
-  const safetyTimer = setTimeout(() => {
-    loadFromLS();
-    safeRender();
-  }, 5000);
+  // 2. 안전장치: 5초 이내 Firebase 응답 없으면 현재 상태로 렌더
+  const safetyTimer = setTimeout(() => safeRender(), 5000);
 
   try {
     const snap = await DOC.get();
     clearTimeout(safetyTimer);
+
     if (snap.exists) {
-      const data = snap.data();
-      state = Object.assign({}, DEFAULT, data);
-      applyTypeSafety(state);
-    } else {
-      loadFromLS();
+      const fsData = snap.data();
+      const fsMs = tsToMs(fsData.last_updated);
+      const lsMs = tsToMs(state.last_updated);   // 이미 loadFromLS()로 로드된 값
+
+      if (fsMs >= lsMs) {
+        // Firestore가 더 최신 (또는 동일) → Firestore 데이터 사용
+        state = Object.assign({}, DEFAULT, fsData);
+        applyTypeSafety(state);
+        saveToLS(); // localStorage 동기화
+      } else {
+        // localStorage가 더 최신 (Firestore write 실패 등) → localStorage 유지하며 Firestore 동기화 시도
+        console.warn('localStorage가 Firestore보다 최신 — 로컬 데이터 사용');
+        DOC.set(state).catch(e => console.warn('Firestore 동기화 실패:', e));
+      }
     }
+    // snap.exists가 false면 localStorage 데이터 그대로 사용
   } catch(e) {
     clearTimeout(safetyTimer);
     console.error('Firestore load error:', e);
-    loadFromLS();
+    // localStorage 데이터 유지
   }
   safeRender();
 }
