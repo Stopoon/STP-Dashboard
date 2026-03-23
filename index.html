@@ -22,16 +22,16 @@
 
 <style>
 :root {
-  --bg: #0a0c0f;
-  --surface: #111318;
-  --border: #1e2128;
-  --text: #e8eaf0;
-  --muted: #4a5060;
-  --card-bg: #13161d;
-  --fitness: #00e5a0;
-  --growth: #4d9fff;
-  --income: #ffb800;
-  --family: #ff6b8a;
+  --bg: #f0f4f9;
+  --surface: #ffffff;
+  --border: #dde3ee;
+  --text: #1a1f2e;
+  --muted: #6b7a99;
+  --card-bg: #ffffff;
+  --fitness: #00b87a;
+  --growth: #2d7ef0;
+  --income: #e8a000;
+  --family: #e8365d;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 html { scroll-behavior:smooth; }
@@ -42,8 +42,8 @@ body {
   min-height: 100vh;
   padding: 32px 24px 60px;
   background-image:
-    radial-gradient(ellipse 80% 40% at 15% 0%, rgba(0,229,160,0.05) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 30% at 85% 100%, rgba(77,159,255,0.05) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 40% at 15% 0%, rgba(0,184,122,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 30% at 85% 100%, rgba(45,126,240,0.07) 0%, transparent 60%);
 }
 
 /* ── HEADER ── */
@@ -180,7 +180,7 @@ body {
   top:-50px;right:-50px;
   width:130px;height:130px;
   border-radius:50%;
-  opacity:.04;
+  opacity:.07;
   pointer-events:none;
 }
 .cat-card.c-fitness::after { background:var(--fitness); }
@@ -306,7 +306,7 @@ body {
 .spark-bars { display:flex; gap:4px; align-items:flex-end; height:44px; }
 .spark-bar {
   flex:1; border-radius:2px 2px 0 0;
-  background:rgba(255,184,0,.2); min-height:3px;
+  background:rgba(232,160,0,.18); min-height:3px;
   transition:height .5s ease;
 }
 .spark-bar.active { background:var(--income); }
@@ -352,7 +352,7 @@ body {
   font-size:11px; letter-spacing:1.5px;
   cursor:pointer; transition:all .2s;
 }
-.log-btn:hover { color:var(--bg); }
+.log-btn:hover { color:#fff; }
 .c-fitness .log-btn:hover { background:var(--fitness); }
 .c-growth  .log-btn:hover { background:var(--growth); }
 .c-income  .log-btn:hover { background:var(--income); }
@@ -585,7 +585,8 @@ body {
 <div class="streak-label" style="margin-top:14px;">조깅 STREAK — 최근 10주</div>
 <div class="streak-row" id="streakMap"></div>
 
-<div class="log-btn-row">
+<div class="log-btn-row" style="gap:8px;justify-content:flex-end">
+  <button class="log-btn" onclick="openBulkModal()" style="letter-spacing:1px">📋 1~2월 일괄 등록</button>
   <button class="log-btn" onclick="openModal('fitness')">+ LOG 실적</button>
 </div>
 
@@ -743,8 +744,8 @@ body {
     <div class="modal-accent-bar" style="background:var(--fitness)"></div>
 
 <div class="field-group">
-  <label class="field-label">조깅 연간 총 누적 거리 (km)</label>
-  <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 150.5">
+  <label class="field-label">오늘 조깅 거리 (km) — 연간 합계에 추가됩니다</label>
+  <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 5.5">
   <div id="f-jogging-hint" style="font-size:10px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px"></div>
 </div>
 <div class="field-row" style="margin-top:4px">
@@ -934,6 +935,57 @@ body {
 <div class="modal-actions">
   <button class="btn-cancel" onclick="closeModal('family')">취소</button>
   <button class="btn-save" id="save-family" style="background:var(--family)" onclick="saveFamily()">저장</button>
+</div>
+
+  </div>
+</div>
+
+<!-- BULK MODAL -->
+
+<div class="modal-overlay" id="modal-bulk">
+  <div class="modal">
+    <button class="modal-close" onclick="closeBulkModal()">✕</button>
+    <div class="modal-title" style="color:var(--fitness)">1~2월 일괄 등록</div>
+    <div class="modal-sub">기간을 지정하고 운동 실적을 한 번에 등록합니다</div>
+    <div class="modal-accent-bar" style="background:var(--fitness)"></div>
+
+<div class="field-row">
+  <div class="field-group">
+    <label class="field-label">시작일</label>
+    <input class="field-input" id="bulk-start" type="date">
+  </div>
+  <div class="field-group">
+    <label class="field-label">종료일</label>
+    <input class="field-input" id="bulk-end" type="date">
+  </div>
+</div>
+
+<div class="field-group" style="margin-top:4px">
+  <label class="field-label">조깅 — 기간 내 총 거리 추가 (km)</label>
+  <input class="field-input" id="bulk-jogging" type="number" min="0" step="0.1" placeholder="예: 120.0  (미입력 시 스킵)">
+</div>
+
+<div class="field-group">
+  <label class="field-label">기간 내 매일 완료한 운동</label>
+  <div style="display:flex;flex-direction:column;gap:10px;padding:10px 0">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+      <input type="checkbox" id="bulk-pullup" style="accent-color:var(--fitness);width:16px;height:16px"> 💪 턱걸이 (매일)
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+      <input type="checkbox" id="bulk-squat" style="accent-color:var(--fitness);width:16px;height:16px"> 🔥 스쿼트 (매일)
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+      <input type="checkbox" id="bulk-pushup" style="accent-color:var(--fitness);width:16px;height:16px"> ✊ 팔굽혀펴기 (매일)
+    </label>
+  </div>
+  <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.5px">
+    ※ 체크한 운동은 기간 내 모든 날짜에 완료 처리됩니다 (이미 등록된 날짜는 중복 방지)
+  </div>
+</div>
+
+<div class="modal-actions">
+  <button class="btn-cancel" onclick="closeBulkModal()">취소</button>
+  <button class="btn-save" id="save-bulk" style="background:var(--fitness)" onclick="saveBulk()">일괄 등록</button>
 </div>
 
   </div>
@@ -1289,7 +1341,7 @@ function openModal(type) {
   document.getElementById('modal-' + type).classList.add('open');
   if (type === 'fitness') {
     document.getElementById('f-exercise-date').value = today();
-    document.getElementById('f-jogging-hint').textContent = '현재 누적: ' + state.jogging.toFixed(1) + ' km — 새 값 입력 시 대체됩니다';
+    document.getElementById('f-jogging-hint').textContent = '연간 누적: ' + state.jogging.toFixed(1) + ' km — 오늘 거리를 입력하면 합산됩니다';
   }
 }
 function closeModal(type) {
@@ -1337,34 +1389,29 @@ function toggleFamilyFields() {
 // ── SAVE HANDLERS ──
 async function saveFitness() {
   const joggingInput   = document.getElementById('f-jogging').value;
-  const exerciseDate   = document.getElementById('f-exercise-date').value;
+  const exerciseDate   = document.getElementById('f-exercise-date').value || today();
   const pullupDone     = document.getElementById('f-pullup-done').checked;
   const squatDone      = document.getElementById('f-squat-done').checked;
   const pushupDone     = document.getElementById('f-pushup-done').checked;
   const memo           = document.getElementById('f-memo').value.trim();
 
-  // 조깅: 총 누적값으로 대체 (증가했을 때만 streak 기록)
+  // 조깅: 세션 거리 입력 → 연간 합계에 추가
   if (joggingInput !== '') {
-    const joggingVal = parseFloat(joggingInput);
-    if (!isNaN(joggingVal) && joggingVal >= 0) {
-      const diff = parseFloat((joggingVal - state.jogging).toFixed(2));
-      if (diff > 0) {
-        state.jogging_log = state.jogging_log || [];
-        state.jogging_log.push({ date: exerciseDate || today(), km: diff, memo });
-      }
-      state.jogging = parseFloat(joggingVal.toFixed(2));
+    const sessionKm = parseFloat(joggingInput);
+    if (!isNaN(sessionKm) && sessionKm > 0) {
+      state.jogging_log = state.jogging_log || [];
+      state.jogging_log.push({ date: exerciseDate || today(), km: sessionKm, memo });
+      state.jogging = parseFloat((state.jogging + sessionKm).toFixed(2));
     }
   }
 
   // 운동 체크: 날짜별 완료 기록 (중복 방지)
-  if (exerciseDate) {
-    state.pullup_days = state.pullup_days || [];
-    state.squat_days  = state.squat_days  || [];
-    state.pushup_days = state.pushup_days || [];
-    if (pullupDone && !state.pullup_days.includes(exerciseDate)) state.pullup_days.push(exerciseDate);
-    if (squatDone  && !state.squat_days.includes(exerciseDate))  state.squat_days.push(exerciseDate);
-    if (pushupDone && !state.pushup_days.includes(exerciseDate)) state.pushup_days.push(exerciseDate);
-  }
+  state.pullup_days = state.pullup_days || [];
+  state.squat_days  = state.squat_days  || [];
+  state.pushup_days = state.pushup_days || [];
+  if (pullupDone && !state.pullup_days.includes(exerciseDate)) state.pullup_days.push(exerciseDate);
+  if (squatDone  && !state.squat_days.includes(exerciseDate))  state.squat_days.push(exerciseDate);
+  if (pushupDone && !state.pushup_days.includes(exerciseDate)) state.pushup_days.push(exerciseDate);
 
   if (joggingInput === '' && !pullupDone && !squatDone && !pushupDone) {
     showToast('입력값이 없습니다'); return;
@@ -1440,6 +1487,80 @@ async function saveFamily() {
   renderAll();
   await saveData();
 }
+
+// ── BULK ENTRY ──
+function openBulkModal() {
+  document.getElementById('modal-bulk').classList.add('open');
+  // 기본값: 2026-01-01 ~ 2026-02-28
+  document.getElementById('bulk-start').value = '2026-01-01';
+  document.getElementById('bulk-end').value   = '2026-02-28';
+}
+
+function closeBulkModal() {
+  document.getElementById('modal-bulk').classList.remove('open');
+  document.getElementById('bulk-jogging').value = '';
+  document.getElementById('bulk-pullup').checked = false;
+  document.getElementById('bulk-squat').checked  = false;
+  document.getElementById('bulk-pushup').checked = false;
+}
+
+async function saveBulk() {
+  const startStr = document.getElementById('bulk-start').value;
+  const endStr   = document.getElementById('bulk-end').value;
+  const joggingInput = document.getElementById('bulk-jogging').value;
+  const pullup  = document.getElementById('bulk-pullup').checked;
+  const squat   = document.getElementById('bulk-squat').checked;
+  const pushup  = document.getElementById('bulk-pushup').checked;
+
+  if (!startStr || !endStr) { showToast('기간을 입력해주세요'); return; }
+  if (startStr > endStr)    { showToast('시작일이 종료일보다 늦습니다'); return; }
+
+  const sessionKm = parseFloat(joggingInput);
+  if (!pullup && !squat && !pushup && (isNaN(sessionKm) || sessionKm <= 0)) {
+    showToast('등록할 항목이 없습니다'); return;
+  }
+
+  // 기간 내 날짜 목록 생성
+  const dates = [];
+  const cur = new Date(startStr + 'T00:00:00');
+  const end = new Date(endStr   + 'T00:00:00');
+  while (cur <= end) {
+    dates.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  // 운동 날짜 일괄 추가
+  state.pullup_days = state.pullup_days || [];
+  state.squat_days  = state.squat_days  || [];
+  state.pushup_days = state.pushup_days || [];
+  dates.forEach(date => {
+    if (pullup  && !state.pullup_days.includes(date)) state.pullup_days.push(date);
+    if (squat   && !state.squat_days.includes(date))  state.squat_days.push(date);
+    if (pushup  && !state.pushup_days.includes(date)) state.pushup_days.push(date);
+  });
+
+  // 조깅 거리 추가
+  if (!isNaN(sessionKm) && sessionKm > 0) {
+    state.jogging_log = state.jogging_log || [];
+    state.jogging_log.push({
+      date: startStr,
+      km: sessionKm,
+      memo: `일괄등록 ${startStr}~${endStr}`
+    });
+    state.jogging = parseFloat((state.jogging + sessionKm).toFixed(2));
+  }
+
+  const savedDays = dates.length;
+  closeBulkModal();
+  renderAll();
+  await saveData();
+  showToast(`✓ ${savedDays}일 실적 일괄 등록 완료`);
+}
+
+// Bulk modal overlay click close
+document.getElementById('modal-bulk').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-bulk')) closeBulkModal();
+});
 
 // ── TOAST ──
 let toastTimer = null;
