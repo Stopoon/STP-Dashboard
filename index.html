@@ -442,6 +442,21 @@ body {
 }
 .toast.show { transform:translateY(0); opacity:1; }
 
+/* ── EDU LOG LIST ── */
+.edu-log-item {
+  display:flex; align-items:center; gap:8px;
+  padding:5px 0;
+  border-bottom:1px solid var(--border);
+  font-size:11px;
+}
+.edu-log-item:last-child { border-bottom:none; }
+.edu-log-q {
+  font-family:'Bebas Neue',sans-serif; font-size:13px;
+  color:var(--family); letter-spacing:1px; flex-shrink:0; width:24px;
+}
+.edu-log-name { flex:1; font-weight:500; }
+.edu-log-date { color:var(--muted); font-family:'JetBrains Mono',monospace; font-size:10px; flex-shrink:0; }
+
 /* ── BOTTOM ── */
 .bottom-strip {
   display:flex; align-items:center; justify-content:space-between;
@@ -557,7 +572,7 @@ body {
 <div class="goal-row">
   <div class="goal-meta">
     <span class="goal-name">💪 턱걸이</span>
-    <span class="goal-nums">올해 <strong id="pullup-val">0</strong> / 300 일</span>
+    <span class="goal-nums">올해 <strong id="pullup-val">0</strong> / 365 일</span>
   </div>
   <div class="progress-track">
     <div class="progress-fill" id="pullup-bar" style="width:0%"></div>
@@ -566,7 +581,7 @@ body {
 <div class="goal-row">
   <div class="goal-meta">
     <span class="goal-name">🔥 스쿼트</span>
-    <span class="goal-nums">올해 <strong id="squat-val">0</strong> / 300 일</span>
+    <span class="goal-nums">올해 <strong id="squat-val">0</strong> / 365 일</span>
   </div>
   <div class="progress-track">
     <div class="progress-fill" id="squat-bar" style="width:0%"></div>
@@ -575,7 +590,7 @@ body {
 <div class="goal-row">
   <div class="goal-meta">
     <span class="goal-name">✊ 팔굽혀펴기</span>
-    <span class="goal-nums">올해 <strong id="pushup-val">0</strong> / 300 일</span>
+    <span class="goal-nums">올해 <strong id="pushup-val">0</strong> / 365 일</span>
   </div>
   <div class="progress-track">
     <div class="progress-fill" id="pushup-bar" style="width:0%"></div>
@@ -586,7 +601,7 @@ body {
 <div class="streak-row" id="streakMap"></div>
 
 <div class="log-btn-row" style="gap:8px;justify-content:flex-end">
-  <button class="log-btn" onclick="openBulkModal()" style="letter-spacing:1px">📋 1~2월 일괄 등록</button>
+  <button class="log-btn" onclick="openBulkModal()" style="letter-spacing:1px">📋 일괄 등록</button>
   <button class="log-btn" onclick="openModal('fitness')">+ LOG 실적</button>
 </div>
 
@@ -703,6 +718,7 @@ body {
   <div class="q-box" id="edu-q3"><div class="q-label">Q3</div><div class="q-status">예정</div></div>
   <div class="q-box" id="edu-q4"><div class="q-label">Q4</div><div class="q-status">예정</div></div>
 </div>
+<div id="edu-log-list" style="margin-top:8px;max-height:120px;overflow-y:auto"></div>
 
 <div class="goal-row" style="margin-top:16px;">
   <div class="goal-meta">
@@ -744,8 +760,8 @@ body {
     <div class="modal-accent-bar" style="background:var(--fitness)"></div>
 
 <div class="field-group">
-  <label class="field-label">오늘 조깅 거리 (km) — 연간 합계에 추가됩니다</label>
-  <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 5.5">
+  <label class="field-label">연간 실적 (km) — 입력값으로 대체됩니다</label>
+  <input class="field-input" id="f-jogging" type="number" min="0" step="0.1" placeholder="예: 150.5">
   <div id="f-jogging-hint" style="font-size:10px;color:var(--muted);margin-top:4px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px"></div>
 </div>
 <div class="field-row" style="margin-top:4px">
@@ -945,24 +961,31 @@ body {
 <div class="modal-overlay" id="modal-bulk">
   <div class="modal">
     <button class="modal-close" onclick="closeBulkModal()">✕</button>
-    <div class="modal-title" style="color:var(--fitness)">1~2월 일괄 등록</div>
-    <div class="modal-sub">기간을 지정하고 운동 실적을 한 번에 등록합니다</div>
+    <div class="modal-title" style="color:var(--fitness)">운동 실적 일괄 등록</div>
+    <div class="modal-sub">월을 선택하고 해당 월 실적을 한 번에 등록합니다</div>
     <div class="modal-accent-bar" style="background:var(--fitness)"></div>
 
-<div class="field-row">
-  <div class="field-group">
-    <label class="field-label">시작일</label>
-    <input class="field-input" id="bulk-start" type="date">
-  </div>
-  <div class="field-group">
-    <label class="field-label">종료일</label>
-    <input class="field-input" id="bulk-end" type="date">
-  </div>
+<div class="field-group">
+  <label class="field-label">월 선택</label>
+  <select class="field-select" id="bulk-month">
+    <option value="0">1월 (1/1 ~ 1/31)</option>
+    <option value="1">2월 (2/1 ~ 2/28)</option>
+    <option value="2">3월 (3/1 ~ 3/31)</option>
+    <option value="3">4월 (4/1 ~ 4/30)</option>
+    <option value="4">5월 (5/1 ~ 5/31)</option>
+    <option value="5">6월 (6/1 ~ 6/30)</option>
+    <option value="6">7월 (7/1 ~ 7/31)</option>
+    <option value="7">8월 (8/1 ~ 8/31)</option>
+    <option value="8">9월 (9/1 ~ 9/30)</option>
+    <option value="9">10월 (10/1 ~ 10/31)</option>
+    <option value="10">11월 (11/1 ~ 11/30)</option>
+    <option value="11">12월 (12/1 ~ 12/31)</option>
+  </select>
 </div>
 
-<div class="field-group" style="margin-top:4px">
-  <label class="field-label">조깅 — 기간 내 총 거리 추가 (km)</label>
-  <input class="field-input" id="bulk-jogging" type="number" min="0" step="0.1" placeholder="예: 120.0  (미입력 시 스킵)">
+<div class="field-group">
+  <label class="field-label">조깅 — 해당 월 총 거리 추가 (km)</label>
+  <input class="field-input" id="bulk-jogging" type="number" min="0" step="0.1" placeholder="예: 55.0  (미입력 시 스킵)">
 </div>
 
 <div class="field-group">
@@ -1031,6 +1054,7 @@ const DEFAULT = {
   travel_months: new Array(12).fill(0),     // 월별 여행 횟수 (정수)
   travel_themes: new Array(12).fill(''),
   edu: { q1:null, q2:null, q3:null, q4:null },
+  edu_log: [],    // [{q:'q1', name:'과학관', date:'2026-01-15'}, ...] 최신순
   last_updated: null
 };
 
@@ -1137,9 +1161,8 @@ function buildMonthGrid() {
     if (count > 0) cls += ' done';
     else if (i === curMonth) cls += ' current';
     pill.className = cls;
-    if (count > 1)      pill.innerHTML = `${m}<br>${count}회`;
-    else if (count === 1) pill.innerHTML = `${m}<br>✓`;
-    else                  pill.innerHTML = m;
+    if (count > 0) pill.innerHTML = `${m}<br><span style="font-size:11px;font-weight:700">${count}회</span>`;
+    else           pill.innerHTML = m;
     pill.title = state.travel_themes[i] || '';
     container.appendChild(pill);
   });
@@ -1159,27 +1182,44 @@ function updateQuarters() {
       el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">예정</div>`;
     }
   });
-  // Edu
+  // Edu Q박스: edu_log 기반으로 분기별 건수 표시
+  const eduLog = state.edu_log || [];
   ['q1','q2','q3','q4'].forEach(q => {
     const el = document.getElementById('edu-' + q);
-    const val = state.edu[q];
-    if (val) {
+    const count = eduLog.filter(e => e.q === q).length;
+    if (count > 0) {
       el.className = 'q-box done-f';
-      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">${val}</div>`;
+      el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">${count}건</div>`;
     } else {
       el.className = 'q-box';
       el.innerHTML = `<div class="q-label">${q.toUpperCase()}</div><div class="q-status">예정</div>`;
     }
   });
+
+  // 교육행사 누적 목록 (최신순)
+  const listEl = document.getElementById('edu-log-list');
+  if (listEl) {
+    if (eduLog.length === 0) {
+      listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:6px 0">등록된 행사가 없습니다</div>';
+    } else {
+      listEl.innerHTML = eduLog.map(e =>
+        `<div class="edu-log-item">
+          <span class="edu-log-q">${e.q.toUpperCase()}</span>
+          <span class="edu-log-name">${e.name}</span>
+          <span class="edu-log-date">${e.date}</span>
+        </div>`
+      ).join('');
+    }
+  }
 }
 
 // ── OVERVIEW SCORES ──
 function calcFitnessPct() {
   const joggingP = pct(state.jogging, 900);
   const curYear  = new Date().getFullYear().toString();
-  const pullupP  = pct((state.pullup_days || []).filter(d => d.startsWith(curYear)).length, 300);
-  const squatP   = pct((state.squat_days  || []).filter(d => d.startsWith(curYear)).length, 300);
-  const pushupP  = pct((state.pushup_days || []).filter(d => d.startsWith(curYear)).length, 300);
+  const pullupP  = pct((state.pullup_days || []).filter(d => d.startsWith(curYear)).length, 365);
+  const squatP   = pct((state.squat_days  || []).filter(d => d.startsWith(curYear)).length, 365);
+  const pushupP  = pct((state.pushup_days || []).filter(d => d.startsWith(curYear)).length, 365);
   return Math.round((joggingP + pullupP + squatP + pushupP) / 4);
 }
 
@@ -1199,7 +1239,8 @@ function calcFamilyPct() {
   const tm = state.travel_months || [];
   // boolean(구버전) 또는 정수(신버전) 모두 처리
   const travelDone = tm.filter(v => (typeof v === 'boolean' ? v : (v || 0) > 0)).length;
-  const eduDone    = ['q1','q2','q3','q4'].filter(q => state.edu[q]).length;
+  const eduLog  = state.edu_log || [];
+  const eduDone = ['q1','q2','q3','q4'].filter(q => eduLog.some(e => e.q === q)).length;
   return Math.round(((travelDone / 12) + (eduDone / 4)) / 2 * 100);
 }
 
@@ -1215,11 +1256,11 @@ function renderAll() {
   const squatCount  = (state.squat_days  || []).filter(d => d.startsWith(curYear)).length;
   const pushupCount = (state.pushup_days || []).filter(d => d.startsWith(curYear)).length;
   document.getElementById('pullup-val').textContent = pullupCount;
-  document.getElementById('pullup-bar').style.width = pct(pullupCount, 300) + '%';
+  document.getElementById('pullup-bar').style.width = pct(pullupCount, 365) + '%';
   document.getElementById('squat-val').textContent  = squatCount;
-  document.getElementById('squat-bar').style.width  = pct(squatCount, 300) + '%';
+  document.getElementById('squat-bar').style.width  = pct(squatCount, 365) + '%';
   document.getElementById('pushup-val').textContent = pushupCount;
-  document.getElementById('pushup-bar').style.width = pct(pushupCount, 300) + '%';
+  document.getElementById('pushup-bar').style.width = pct(pushupCount, 365) + '%';
 
   buildStreak();
 
@@ -1268,7 +1309,8 @@ function renderAll() {
   document.getElementById('ov-fitness-sub').textContent = `조깅 ${state.jogging.toFixed(1)}km / 900km`;
   document.getElementById('ov-growth-sub').textContent  = `영어 ${state.toeic_h1 !== null || state.toeic_h2 !== null ? '응시완료' : '미응시'} · 자격증 ${['q1','q2','q3','q4'].filter(q=>state.cert[q]).length}개`;
   document.getElementById('ov-income-sub').textContent  = `주식 ${state.stock > 0 ? '+' : ''}${state.stock.toFixed(1)}% / 연금 ${state.pension > 0 ? '+' : ''}${state.pension.toFixed(1)}%`;
-  document.getElementById('ov-family-sub').textContent  = `여행 ${travelMonthsDone}/12월 (총${travelTotal}회) · 교육 ${['q1','q2','q3','q4'].filter(q=>state.edu[q]).length}회`;
+  const eduLogCount = (state.edu_log || []).length;
+  document.getElementById('ov-family-sub').textContent  = `여행 ${travelMonthsDone}/12월 (총${travelTotal}회) · 교육 ${eduLogCount}회`;
 
   // Overall
   const overall = Math.round((fp + gop + ip + famp) / 4);
@@ -1303,6 +1345,7 @@ async function loadData() {
       if (!state.travel_themes) state.travel_themes = new Array(12).fill('');
       if (!state.cert)          state.cert = { q1:null, q2:null, q3:null, q4:null };
       if (!state.edu)           state.edu  = { q1:null, q2:null, q3:null, q4:null };
+      if (!state.edu_log)       state.edu_log = [];
       if (!state.pullup_days)   state.pullup_days = [];
       if (!state.squat_days)    state.squat_days  = [];
       if (!state.pushup_days)   state.pushup_days = [];
@@ -1341,7 +1384,7 @@ function openModal(type) {
   document.getElementById('modal-' + type).classList.add('open');
   if (type === 'fitness') {
     document.getElementById('f-exercise-date').value = today();
-    document.getElementById('f-jogging-hint').textContent = '연간 누적: ' + state.jogging.toFixed(1) + ' km — 오늘 거리를 입력하면 합산됩니다';
+    document.getElementById('f-jogging-hint').textContent = '현재 실적: ' + state.jogging.toFixed(1) + ' km — 새 값 입력 시 대체됩니다';
   }
 }
 function closeModal(type) {
@@ -1395,13 +1438,13 @@ async function saveFitness() {
   const pushupDone     = document.getElementById('f-pushup-done').checked;
   const memo           = document.getElementById('f-memo').value.trim();
 
-  // 조깅: 세션 거리 입력 → 연간 합계에 추가
+  // 조깅: 입력값 = 연간 실적 (대체)
   if (joggingInput !== '') {
-    const sessionKm = parseFloat(joggingInput);
-    if (!isNaN(sessionKm) && sessionKm > 0) {
+    const joggingVal = parseFloat(joggingInput);
+    if (!isNaN(joggingVal) && joggingVal >= 0) {
       state.jogging_log = state.jogging_log || [];
-      state.jogging_log.push({ date: exerciseDate || today(), km: sessionKm, memo });
-      state.jogging = parseFloat((state.jogging + sessionKm).toFixed(2));
+      state.jogging_log.push({ date: exerciseDate || today(), km: joggingVal, memo });
+      state.jogging = parseFloat(joggingVal.toFixed(2));
     }
   }
 
@@ -1480,7 +1523,9 @@ async function saveFamily() {
     const q    = document.getElementById('fam-edu-quarter').value;
     const name = document.getElementById('fam-edu-name').value.trim();
     if (!name) { showToast('행사명을 입력해주세요'); return; }
-    state.edu[q] = name;
+    state.edu_log = state.edu_log || [];
+    state.edu_log.unshift({ q, name, date: today() }); // 최신이 앞으로
+    state.edu[q] = name; // 하위 호환
   }
 
   closeModal('family');
@@ -1491,9 +1536,9 @@ async function saveFamily() {
 // ── BULK ENTRY ──
 function openBulkModal() {
   document.getElementById('modal-bulk').classList.add('open');
-  // 기본값: 2026-01-01 ~ 2026-02-28
-  document.getElementById('bulk-start').value = '2026-01-01';
-  document.getElementById('bulk-end').value   = '2026-02-28';
+  // 기본값: 직전 월
+  const prevMonth = new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1;
+  document.getElementById('bulk-month').value = prevMonth;
 }
 
 function closeBulkModal() {
@@ -1505,29 +1550,29 @@ function closeBulkModal() {
 }
 
 async function saveBulk() {
-  const startStr = document.getElementById('bulk-start').value;
-  const endStr   = document.getElementById('bulk-end').value;
+  const monthIdx    = parseInt(document.getElementById('bulk-month').value);
   const joggingInput = document.getElementById('bulk-jogging').value;
   const pullup  = document.getElementById('bulk-pullup').checked;
   const squat   = document.getElementById('bulk-squat').checked;
   const pushup  = document.getElementById('bulk-pushup').checked;
-
-  if (!startStr || !endStr) { showToast('기간을 입력해주세요'); return; }
-  if (startStr > endStr)    { showToast('시작일이 종료일보다 늦습니다'); return; }
 
   const sessionKm = parseFloat(joggingInput);
   if (!pullup && !squat && !pushup && (isNaN(sessionKm) || sessionKm <= 0)) {
     showToast('등록할 항목이 없습니다'); return;
   }
 
-  // 기간 내 날짜 목록 생성
+  // 선택한 월의 모든 날짜 생성 (2026년 기준)
+  const year = 2026;
+  const firstDay = new Date(year, monthIdx, 1);
+  const lastDay  = new Date(year, monthIdx + 1, 0); // 해당 월 마지막 날
   const dates = [];
-  const cur = new Date(startStr + 'T00:00:00');
-  const end = new Date(endStr   + 'T00:00:00');
-  while (cur <= end) {
+  const cur = new Date(firstDay);
+  while (cur <= lastDay) {
     dates.push(cur.toISOString().slice(0, 10));
     cur.setDate(cur.getDate() + 1);
   }
+  const startStr = dates[0];
+  const endStr   = dates[dates.length - 1];
 
   // 운동 날짜 일괄 추가
   state.pullup_days = state.pullup_days || [];
@@ -1539,14 +1584,10 @@ async function saveBulk() {
     if (pushup  && !state.pushup_days.includes(date)) state.pushup_days.push(date);
   });
 
-  // 조깅 거리 추가
+  // 조깅 거리 추가 (대체 방식이므로 기존 값에 합산)
   if (!isNaN(sessionKm) && sessionKm > 0) {
     state.jogging_log = state.jogging_log || [];
-    state.jogging_log.push({
-      date: startStr,
-      km: sessionKm,
-      memo: `일괄등록 ${startStr}~${endStr}`
-    });
+    state.jogging_log.push({ date: startStr, km: sessionKm, memo: `일괄등록 ${startStr}~${endStr}` });
     state.jogging = parseFloat((state.jogging + sessionKm).toFixed(2));
   }
 
