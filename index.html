@@ -15,9 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 
 <!-- Firebase SDK v9 compat (CDN) -->
-
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
 <style>
@@ -1033,10 +1031,16 @@ const firebaseConfig = {
   measurementId: "G-DBPPVL5J2H"
 };
 
-// ── INIT ──
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const DOC = db.collection('goals').doc('2026');
+// ── FIREBASE INIT (오류 시 로컬 전용 모드) ──
+let DOC = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  DOC = db.collection('goals').doc('2026');
+} catch(e) {
+  console.warn('Firebase 초기화 실패, 로컬 전용 모드:', e.message);
+  DOC = null;
+}
 
 // ── DEFAULT STATE ──
 const DEFAULT = {
@@ -1372,13 +1376,20 @@ function loadFromLS() {
   } catch(e) { return false; }
 }
 
-// ── FIREBASE LOAD ──
+// ── DATA LOAD ──
 async function loadData() {
+  if (!DOC) {
+    // Firebase 없음 → localStorage에서 즉시 로드
+    loadFromLS();
+    renderAll();
+    hideLoading();
+    return;
+  }
+
   // 안전장치: 5초 안에 Firebase 응답 없으면 로컬 데이터로 렌더링
   const safetyTimer = setTimeout(() => {
     console.warn('Firebase 응답 타임아웃 — 로컬 데이터로 렌더링');
-    const hasLocal = loadFromLS();
-    if (!hasLocal) showToast('⚠ Firebase 연결 지연. 데이터가 없습니다.');
+    loadFromLS();
     renderAll();
     hideLoading();
   }, 5000);
@@ -1397,10 +1408,7 @@ async function loadData() {
   } catch(e) {
     clearTimeout(safetyTimer);
     console.error('Firestore load error:', e);
-    const hasLocal = loadFromLS();
-    showToast(hasLocal
-      ? '⚠ Firestore 연결 실패. 로컬 저장 데이터를 불러왔습니다.'
-      : '⚠ 데이터 로드 실패. 오프라인 모드입니다.');
+    loadFromLS();
   }
   renderAll();
   hideLoading();
@@ -1425,12 +1433,16 @@ async function saveData() {
   state.last_updated = new Date();
   saveToLS(); // 항상 로컬에 저장 (Firestore 상태 무관)
 
+  if (!DOC) {
+    showToast('✓ 저장 완료 (로컬) — 조깅 ' + state.jogging.toFixed(1) + ' km');
+    return;
+  }
   try {
     await DOC.set(state);
     showToast('✓ 저장 완료 — 조깅 ' + state.jogging.toFixed(1) + ' km');
   } catch(e) {
     console.error('Firestore save error:', e);
-    showToast('✓ 로컬 저장 완료 (Firestore 비활성화)');
+    showToast('✓ 저장 완료 (로컬) — 조깅 ' + state.jogging.toFixed(1) + ' km');
   }
 }
 
