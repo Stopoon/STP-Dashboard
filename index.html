@@ -483,6 +483,8 @@ body {
   display:flex; align-items:center; justify-content:center;
   z-index:9999; transition:opacity .4s ease;
 }
+#loading-overlay[style*="opacity: 0"],
+#loading-overlay[style*="opacity:0"] { pointer-events:none; }
 .loading-text {
   font-family:'Bebas Neue',sans-serif;
   font-size:24px; letter-spacing:4px; color:var(--muted);
@@ -1376,22 +1378,23 @@ function loadFromLS() {
   } catch(e) { return false; }
 }
 
+// ── SAFE RENDER (renderAll 예외로 인한 화면 멈춤 방지) ──
+function safeRender() {
+  try { renderAll(); } catch(e) { console.error('renderAll error:', e); }
+  hideLoading();
+}
+
 // ── DATA LOAD ──
 async function loadData() {
   if (!DOC) {
-    // Firebase 없음 → localStorage에서 즉시 로드
     loadFromLS();
-    renderAll();
-    hideLoading();
+    safeRender();
     return;
   }
 
-  // 안전장치: 5초 안에 Firebase 응답 없으면 로컬 데이터로 렌더링
   const safetyTimer = setTimeout(() => {
-    console.warn('Firebase 응답 타임아웃 — 로컬 데이터로 렌더링');
     loadFromLS();
-    renderAll();
-    hideLoading();
+    safeRender();
   }, 5000);
 
   try {
@@ -1402,7 +1405,6 @@ async function loadData() {
       state = Object.assign({}, DEFAULT, data);
       applyTypeSafety(state);
     } else {
-      // Firestore에 데이터 없음 → localStorage 복원 시도
       loadFromLS();
     }
   } catch(e) {
@@ -1410,8 +1412,7 @@ async function loadData() {
     console.error('Firestore load error:', e);
     loadFromLS();
   }
-  renderAll();
-  hideLoading();
+  safeRender();
 }
 
 // ── FIREBASE SAVE ──
@@ -1533,7 +1534,7 @@ async function saveFitness() {
   }
 
   closeModal('fitness');
-  renderAll();
+  safeRender();
   await saveData();
 }
 
@@ -1555,7 +1556,7 @@ async function saveGrowth() {
   }
 
   closeModal('growth');
-  renderAll();
+  safeRender();
   await saveData();
 }
 
@@ -1572,7 +1573,7 @@ async function saveIncome() {
   }
 
   closeModal('income');
-  renderAll();
+  safeRender();
   await saveData();
 }
 
@@ -1587,22 +1588,21 @@ async function saveFamily() {
     if (isNaN(month) || month < 0 || month > 11) { showToast('올바른 월을 선택해주세요'); return; }
     state.travel_months = state.travel_months || new Array(12).fill(0);
     state.travel_themes = state.travel_themes || new Array(12).fill('');
-    // 숫자형으로 누적 (구버전 boolean 호환)
     const cur = state.travel_months[month];
     state.travel_months[month] = (typeof cur === 'boolean' ? (cur ? 1 : 0) : (cur || 0)) + 1;
-    state.travel_themes[month] = theme;  // 가장 최근 테마로 갱신
+    state.travel_themes[month] = theme;
   } else {
     const q    = document.getElementById('fam-edu-quarter').value;
     const name = document.getElementById('fam-edu-name').value.trim();
     if (!name) { showToast('행사명을 입력해주세요'); return; }
     state.edu_log = state.edu_log || [];
-    state.edu_log.unshift({ q, name, date: today() }); // 최신이 앞으로
+    state.edu_log.unshift({ q, name, date: today() });
     if (!state.edu) state.edu = { q1:null, q2:null, q3:null, q4:null };
-    state.edu[q] = name; // 하위 호환
+    state.edu[q] = name;
   }
 
   closeModal('family');
-  renderAll();
+  safeRender();
   await saveData();
 }
 
@@ -1666,7 +1666,7 @@ async function saveBulk() {
 
   const savedDays = dates.length;
   closeBulkModal();
-  renderAll();
+  safeRender();
   await saveData();
   showToast(`✓ ${savedDays}일 실적 일괄 등록 완료`);
 }
